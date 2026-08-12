@@ -1,9 +1,12 @@
-import type { TestLiftMode } from './database.types'
+import type { ExerciseTestMode } from './database.types'
 
 export const PLATE_INCREMENT = 5
-export const DEFAULT_WEEK1_PERCENTAGE = 0.75
 
-export type WeekNumber = 1 | 2 | 3 | 4 | 5
+/** Any loggable week, including the unprogrammed deload week. */
+export type WeekNumber = 1 | 2 | 3 | 4 | 5 | 6
+
+/** A week with a computed weekly_targets number (deload week 6 has none). */
+export type TargetWeek = 1 | 2 | 3 | 4 | 5
 
 /**
  * Rounds to the nearest loadable plate increment, with exact ties rounding
@@ -29,51 +32,34 @@ export function rpeBased1RM(weight: number, reps: number, rpe: number): number {
   return epley1RM(weight, reps + repsInReserve)
 }
 
-export interface TestLiftInput {
-  mode: TestLiftMode
+export interface ExerciseTestInput {
+  mode: ExerciseTestMode
   weight?: number
   reps?: number
   rpe?: number
   manualE1rm?: number
-  manualWeek1Weight?: number
-  week1Percentage?: number
 }
 
-export interface ResolvedTestLift {
-  computedE1rm: number | null
-  week1Weight: number
-}
-
-/** Turns a TestLift entry (whichever of the 4 modes) into an E1RM (if applicable) and a Week 1 target weight. */
-export function resolveTestLift(input: TestLiftInput): ResolvedTestLift {
-  const pct = input.week1Percentage ?? DEFAULT_WEEK1_PERCENTAGE
-
+/** Turns an exercise test entry (whichever of the 3 modes) into an E1RM. */
+export function resolveExerciseE1RM(input: ExerciseTestInput): number {
   switch (input.mode) {
     case 'raw_epley': {
       if (input.weight == null || input.reps == null) {
         throw new Error('raw_epley mode requires weight and reps')
       }
-      const e1rm = epley1RM(input.weight, input.reps)
-      return { computedE1rm: e1rm, week1Weight: roundToIncrement(e1rm * pct) }
+      return epley1RM(input.weight, input.reps)
     }
     case 'rpe_based': {
       if (input.weight == null || input.reps == null || input.rpe == null) {
         throw new Error('rpe_based mode requires weight, reps, and rpe')
       }
-      const e1rm = rpeBased1RM(input.weight, input.reps, input.rpe)
-      return { computedE1rm: e1rm, week1Weight: roundToIncrement(e1rm * pct) }
+      return rpeBased1RM(input.weight, input.reps, input.rpe)
     }
     case 'manual_e1rm': {
       if (input.manualE1rm == null) {
         throw new Error('manual_e1rm mode requires manualE1rm')
       }
-      return { computedE1rm: input.manualE1rm, week1Weight: roundToIncrement(input.manualE1rm * pct) }
-    }
-    case 'manual_week1_weight': {
-      if (input.manualWeek1Weight == null) {
-        throw new Error('manual_week1_weight mode requires manualWeek1Weight')
-      }
-      return { computedE1rm: null, week1Weight: roundToIncrement(input.manualWeek1Weight) }
+      return input.manualE1rm
     }
   }
 }
@@ -81,18 +67,19 @@ export function resolveTestLift(input: TestLiftInput): ResolvedTestLift {
 /**
  * Weeks 2-5 are cumulative additive increments over the Week 1 weight
  * (e.g. increments [10,10,5,5] -> week2 = week1+10, week3 = week1+20, ...),
- * each rounded to the nearest loadable plate increment.
+ * each rounded to the nearest loadable plate increment. week1Weight is
+ * typically e1rm * a set-group's own week1_percentage.
  */
 export function computeWeeklyTargets(
   week1Weight: number,
   increments: [number, number, number, number],
-): Record<WeekNumber, number> {
+): Record<TargetWeek, number> {
   const week1 = roundToIncrement(week1Weight)
-  const targets: Record<WeekNumber, number> = { 1: week1, 2: 0, 3: 0, 4: 0, 5: 0 }
+  const targets: Record<TargetWeek, number> = { 1: week1, 2: 0, 3: 0, 4: 0, 5: 0 }
   let cumulative = week1
   increments.forEach((inc, i) => {
     cumulative += inc
-    targets[(i + 2) as WeekNumber] = roundToIncrement(cumulative)
+    targets[(i + 2) as TargetWeek] = roundToIncrement(cumulative)
   })
   return targets
 }

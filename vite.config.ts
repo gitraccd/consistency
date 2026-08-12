@@ -15,8 +15,8 @@ export default defineConfig({
         name: 'Consistency',
         short_name: 'Consistency',
         description: 'Percentage-based strength training programs with self-correcting calibration.',
-        theme_color: '#0f172a',
-        background_color: '#0f172a',
+        theme_color: '#121212',
+        background_color: '#121212',
         display: 'standalone',
         start_url: '/',
         icons: [

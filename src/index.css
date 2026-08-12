@@ -1,9 +1,22 @@
 @import "tailwindcss";
 
+@theme {
+  --color-bg: #121212;
+  --color-surface: #1c1c1e;
+  --color-surface-2: #2c2c2e;
+  --color-border: #38383a;
+  --color-text: #f5f5f7;
+  --color-text-muted: #98989d;
+  --color-accent: #ff6b35;
+  --color-accent-text: #1a0f0a;
+  --color-success: #32d74b;
+  --color-danger: #ff453a;
+}
+
 html {
   color-scheme: dark;
 }
 
 body {
-  @apply bg-slate-950 text-slate-100;
+  @apply bg-bg text-text;
 }

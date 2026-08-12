@@ -1,15 +1,44 @@
 import { supabase } from './supabase'
-import { computeWeeklyTargets, resolveTestLift, type TestLiftInput } from './calc'
+import { computeWeeklyTargets, resolveExerciseE1RM, type ExerciseTestInput } from './calc'
 import type { Database } from './database.types'
 
-export type Lift = Database['public']['Tables']['lifts']['Row']
+export type Exercise = Database['public']['Tables']['exercises']['Row']
+export type Day = Database['public']['Tables']['days']['Row']
+export type SetGroup = Database['public']['Tables']['set_groups']['Row']
 export type Program = Database['public']['Tables']['programs']['Row']
-export type TestLift = Database['public']['Tables']['test_lifts']['Row']
 export type WeeklyTarget = Database['public']['Tables']['weekly_targets']['Row']
 export type LoggedSet = Database['public']['Tables']['logged_sets']['Row']
 
-export async function fetchLifts(): Promise<Lift[]> {
-  const { data, error } = await supabase.from('lifts').select('*').order('sort_order')
+export interface DayExerciseWithDetails {
+  id: string
+  exercise: Exercise
+  set_groups: SetGroup[]
+}
+
+export interface DayWithExercises extends Day {
+  day_exercises: DayExerciseWithDetails[]
+}
+
+/** The fixed Day > Exercise > SetGroup template every block reuses. */
+export async function fetchTemplate(): Promise<DayWithExercises[]> {
+  const { data, error } = await supabase
+    .from('days')
+    .select('*, day_exercises(id, exercise:exercises(*), set_groups(*))')
+    .order('sort_order')
+  if (error) throw error
+
+  const days = data as unknown as DayWithExercises[]
+  for (const day of days) {
+    day.day_exercises.sort((a, b) => a.exercise.name.localeCompare(b.exercise.name))
+    for (const de of day.day_exercises) {
+      de.set_groups.sort((a, b) => a.sort_order - b.sort_order)
+    }
+  }
+  return days
+}
+
+export async function fetchTestableExercises(): Promise<Exercise[]> {
+  const { data, error } = await supabase.from('exercises').select('*').eq('requires_test', true)
   if (error) throw error
   return data
 }
@@ -22,12 +51,6 @@ export async function fetchLatestProgram(): Promise<Program | null> {
     .order('start_date', { ascending: false })
     .limit(1)
     .maybeSingle()
-  if (error) throw error
-  return data
-}
-
-export async function fetchTestLifts(programId: string): Promise<TestLift[]> {
-  const { data, error } = await supabase.from('test_lifts').select('*').eq('program_id', programId)
   if (error) throw error
   return data
 }
@@ -50,7 +73,7 @@ export async function fetchLoggedSets(programId: string): Promise<LoggedSet[]> {
 
 export async function insertLoggedSet(input: {
   programId: string
-  liftId: string
+  setGroupId: string
   weekNumber: number
   weight: number
   reps: number
@@ -61,7 +84,7 @@ export async function insertLoggedSet(input: {
     .from('logged_sets')
     .insert({
       program_id: input.programId,
-      lift_id: input.liftId,
+      set_group_id: input.setGroupId,
       week_number: input.weekNumber,
       weight: input.weight,
       reps: input.reps,
@@ -74,20 +97,25 @@ export async function insertLoggedSet(input: {
   return data
 }
 
-export interface LiftTestPlan {
-  liftId: string
-  input: TestLiftInput
-  increments: [number, number, number, number]
+export interface ExerciseTestPlan {
+  exerciseId: string
+  input: ExerciseTestInput
+}
+
+interface SetGroupWithSourceExercise extends SetGroup {
+  day_exercise: {
+    exercise: Pick<Exercise, 'id' | 'requires_test' | 'e1rm_source_exercise_id'>
+  }
 }
 
 /**
- * Creates a program, resolves each lift's test into a Week 1 weight,
- * generates Weeks 2-5 off the lift's increment sequence, and persists
- * test_lifts + weekly_targets. Also updates each lift's stored defaults
- * so a confirmed percentage/increments becomes the new default going
- * forward (mirrors how the PRD's Bench numbers went from draft to locked).
+ * Creates a program, resolves each tested exercise's E1RM, and generates
+ * Weeks 1-5 weekly_targets for every non-freeform set_group derived from
+ * that E1RM -- including set-groups belonging to a variant exercise (e.g.
+ * "Paused Bench") that borrows another exercise's test via
+ * e1rm_source_exercise_id. Week 6 (deload) gets no target row.
  */
-export async function createProgram(startDate: string, plans: LiftTestPlan[]): Promise<Program> {
+export async function createProgram(startDate: string, plans: ExerciseTestPlan[]): Promise<Program> {
   const { data: program, error: programError } = await supabase
     .from('programs')
     .insert({ start_date: startDate })
@@ -95,41 +123,56 @@ export async function createProgram(startDate: string, plans: LiftTestPlan[]): P
     .single()
   if (programError) throw programError
 
-  for (const plan of plans) {
-    const resolved = resolveTestLift(plan.input)
+  const e1rmByExerciseId = new Map<string, number>()
 
-    const { error: testLiftError } = await supabase.from('test_lifts').insert({
+  for (const plan of plans) {
+    const computedE1rm = resolveExerciseE1RM(plan.input)
+    e1rmByExerciseId.set(plan.exerciseId, computedE1rm)
+
+    const { error: testError } = await supabase.from('exercise_tests').insert({
       program_id: program.id,
-      lift_id: plan.liftId,
+      exercise_id: plan.exerciseId,
       mode: plan.input.mode,
       input_weight: plan.input.weight ?? null,
       input_reps: plan.input.reps ?? null,
       input_rpe: plan.input.rpe ?? null,
       manual_e1rm: plan.input.manualE1rm ?? null,
-      manual_week1_weight: plan.input.manualWeek1Weight ?? null,
-      week1_percentage: plan.input.week1Percentage ?? null,
-      computed_e1rm: resolved.computedE1rm,
+      computed_e1rm: computedE1rm,
     })
-    if (testLiftError) throw testLiftError
+    if (testError) throw testError
+  }
 
-    const targets = computeWeeklyTargets(resolved.week1Weight, plan.increments)
-    const rows = (Object.entries(targets) as [string, number][]).map(([week, weight]) => ({
-      program_id: program.id,
-      lift_id: plan.liftId,
-      week_number: Number(week),
-      target_weight: weight,
-    }))
-    const { error: targetsError } = await supabase.from('weekly_targets').insert(rows)
-    if (targetsError) throw targetsError
+  const { data: setGroups, error: sgError } = await supabase
+    .from('set_groups')
+    .select('*, day_exercise:day_exercises(exercise:exercises(id, requires_test, e1rm_source_exercise_id))')
+  if (sgError) throw sgError
 
-    if (plan.input.week1Percentage != null) {
-      await supabase
-        .from('lifts')
-        .update({ default_week1_percentage: plan.input.week1Percentage, default_increments: plan.increments })
-        .eq('id', plan.liftId)
-    } else {
-      await supabase.from('lifts').update({ default_increments: plan.increments }).eq('id', plan.liftId)
+  const targetRows: Database['public']['Tables']['weekly_targets']['Insert'][] = []
+  for (const sg of setGroups as unknown as SetGroupWithSourceExercise[]) {
+    if (sg.is_freeform || sg.week1_percentage == null || sg.increments == null) continue
+
+    const exercise = sg.day_exercise.exercise
+    const sourceExerciseId = exercise.requires_test ? exercise.id : exercise.e1rm_source_exercise_id
+    if (!sourceExerciseId) continue
+
+    const e1rm = e1rmByExerciseId.get(sourceExerciseId)
+    if (e1rm == null) continue
+
+    const week1Weight = e1rm * sg.week1_percentage
+    const targets = computeWeeklyTargets(week1Weight, sg.increments)
+    for (const [week, weight] of Object.entries(targets)) {
+      targetRows.push({
+        program_id: program.id,
+        set_group_id: sg.id,
+        week_number: Number(week),
+        target_weight: weight,
+      })
     }
+  }
+
+  if (targetRows.length > 0) {
+    const { error: targetsError } = await supabase.from('weekly_targets').insert(targetRows)
+    if (targetsError) throw targetsError
   }
 
   return program
