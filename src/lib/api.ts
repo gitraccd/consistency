@@ -1,5 +1,12 @@
 import { supabase } from './supabase'
-import { computeWeeklyTargets, resolveExerciseE1RM, type ExerciseTestInput } from './calc'
+import {
+  CALIBRATION_TRUST_THRESHOLD,
+  computeWeeklyTargets,
+  resolveExerciseE1RM,
+  rpeBased1RM,
+  updateCorrectionFactor,
+  type ExerciseTestInput,
+} from './calc'
 import type { Database } from './database.types'
 
 export type Exercise = Database['public']['Tables']['exercises']['Row']
@@ -8,6 +15,7 @@ export type SetGroup = Database['public']['Tables']['set_groups']['Row']
 export type Program = Database['public']['Tables']['programs']['Row']
 export type WeeklyTarget = Database['public']['Tables']['weekly_targets']['Row']
 export type LoggedSet = Database['public']['Tables']['logged_sets']['Row']
+export type Calibration = Database['public']['Tables']['calibrations']['Row']
 
 export interface DayExerciseWithDetails {
   id: string
@@ -94,7 +102,69 @@ export async function insertLoggedSet(input: {
     .select()
     .single()
   if (error) throw error
+
+  const effectiveRpe = input.rpe ?? (input.isMaxEffort ? 10 : null)
+  if (effectiveRpe != null) {
+    await updateCalibration(input.programId, input.setGroupId, input.weight, input.reps, effectiveRpe)
+  }
+
   return data
+}
+
+interface SetGroupWithExercise {
+  day_exercise: {
+    exercise: Pick<Exercise, 'id' | 'requires_test'>
+  }
+}
+
+/**
+ * Nudges the logged set-group's exercise calibration toward this set's
+ * implied E1RM via an EMA, but only for sets logged directly against a
+ * requires_test exercise (not variants like Paused Bench) -- variants have a
+ * different strength curve and shouldn't be conflated with the source lift.
+ */
+async function updateCalibration(
+  programId: string,
+  setGroupId: string,
+  weight: number,
+  reps: number,
+  rpe: number,
+): Promise<void> {
+  const { data: setGroup, error: setGroupError } = await supabase
+    .from('set_groups')
+    .select('day_exercise:day_exercises(exercise:exercises(id, requires_test))')
+    .eq('id', setGroupId)
+    .single()
+  if (setGroupError) throw setGroupError
+
+  const exercise = (setGroup as unknown as SetGroupWithExercise).day_exercise.exercise
+  if (!exercise.requires_test) return
+
+  const { data: test, error: testError } = await supabase
+    .from('exercise_tests')
+    .select('computed_e1rm')
+    .eq('program_id', programId)
+    .eq('exercise_id', exercise.id)
+    .maybeSingle()
+  if (testError) throw testError
+  if (!test || test.computed_e1rm == null) return
+
+  const { data: calibration, error: calibrationError } = await supabase
+    .from('calibrations')
+    .select('*')
+    .eq('exercise_id', exercise.id)
+    .single()
+  if (calibrationError) throw calibrationError
+
+  const impliedE1rm = rpeBased1RM(weight, reps, rpe)
+  const newRatio = impliedE1rm / test.computed_e1rm
+  const newFactor = updateCorrectionFactor(calibration.correction_factor, newRatio)
+
+  const { error: updateError } = await supabase
+    .from('calibrations')
+    .update({ correction_factor: newFactor, data_point_count: calibration.data_point_count + 1, updated_at: new Date().toISOString() })
+    .eq('exercise_id', exercise.id)
+  if (updateError) throw updateError
 }
 
 export interface ExerciseTestPlan {
@@ -127,7 +197,6 @@ export async function createProgram(startDate: string, plans: ExerciseTestPlan[]
 
   for (const plan of plans) {
     const computedE1rm = resolveExerciseE1RM(plan.input)
-    e1rmByExerciseId.set(plan.exerciseId, computedE1rm)
 
     const { error: testError } = await supabase.from('exercise_tests').insert({
       program_id: program.id,
@@ -140,6 +209,19 @@ export async function createProgram(startDate: string, plans: ExerciseTestPlan[]
       computed_e1rm: computedE1rm,
     })
     if (testError) throw testError
+
+    const { data: calibration, error: calibrationError } = await supabase
+      .from('calibrations')
+      .select('correction_factor, data_point_count')
+      .eq('exercise_id', plan.exerciseId)
+      .maybeSingle()
+    if (calibrationError) throw calibrationError
+
+    const appliedE1rm =
+      calibration && calibration.data_point_count >= CALIBRATION_TRUST_THRESHOLD
+        ? computedE1rm * calibration.correction_factor
+        : computedE1rm
+    e1rmByExerciseId.set(plan.exerciseId, appliedE1rm)
   }
 
   const { data: setGroups, error: sgError } = await supabase

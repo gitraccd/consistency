@@ -83,3 +83,18 @@ export function computeWeeklyTargets(
   })
   return targets
 }
+
+/** How much an EMA update weights the newest data point vs. calibration history. */
+export const CALIBRATION_ALPHA = 0.25
+
+/** RPE-tagged data points needed before a calibration's correction_factor is trusted for programming. */
+export const CALIBRATION_TRUST_THRESHOLD = 3
+
+/**
+ * Exponential moving average update for a per-exercise correction factor:
+ * recent data outweighs old data, so genuine strength changes are tracked
+ * over months while a single noisy/misjudged RPE reading doesn't swing it.
+ */
+export function updateCorrectionFactor(oldFactor: number, newRatio: number, alpha = CALIBRATION_ALPHA): number {
+  return oldFactor * (1 - alpha) + newRatio * alpha
+}
