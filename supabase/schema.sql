@@ -140,11 +140,14 @@ create table calibrations (
   updated_at timestamptz not null default now()
 );
 
--- Seed: exercises. Bench is the only tested exercise; Paused Bench derives
--- its E1RM from Bench at a lower percentage. Everything else is freeform.
+-- Seed: exercises. Bench and Deadlift are tested exercises; Paused Bench
+-- derives its E1RM from Bench at a lower percentage. Everything else is
+-- freeform. Deadlift is Heavy-day only (1x/week) given its much higher
+-- systemic/spinal fatigue cost vs. Bench's 3x/week spread.
 insert into exercises (name, requires_test) values ('Bench', true);
 insert into exercises (name, requires_test, e1rm_source_exercise_id)
   values ('Paused Bench', false, (select id from exercises where name = 'Bench'));
+insert into exercises (name, requires_test) values ('Deadlift', true);
 insert into exercises (name) values
   ('Weighted Pull-up'),
   ('Incline DB'),
@@ -166,6 +169,7 @@ insert into day_exercises (day_id, exercise_id, sort_order) values
   ((select id from days where name = 'Heavy'), (select id from exercises where name = 'Weighted Pull-up'), 2),
   ((select id from days where name = 'Heavy'), (select id from exercises where name = 'Incline DB'), 3),
   ((select id from days where name = 'Heavy'), (select id from exercises where name = 'Chest-Supported Row'), 4),
+  ((select id from days where name = 'Heavy'), (select id from exercises where name = 'Deadlift'), 5),
   ((select id from days where name = 'Volume'), (select id from exercises where name = 'Bench'), 1),
   ((select id from days where name = 'Volume'), (select id from exercises where name = 'Weighted Pull-up'), 2),
   ((select id from days where name = 'Volume'), (select id from exercises where name = 'Weighted Dip'), 3),
@@ -210,6 +214,16 @@ insert into set_groups (day_exercise_id, reps, num_sets, is_freeform, intensity_
     8, 2, true, null, null, null, null, 1),
   ((select id from day_exercises where day_id = (select id from days where name = 'Heavy') and exercise_id = (select id from exercises where name = 'Chest-Supported Row')),
     8, 2, true, null, null, null, null, 1),
+  -- Deadlift: 1x/week (Heavy day only) given its much higher systemic/spinal
+  -- fatigue cost vs. Bench's 3x/week spread. Trusted test 375x1 @ RPE9 ->
+  -- E1RM ~400 (rpeBased1RM). Percentages mirror Bench's build shape but cap
+  -- at 92.5% E1RM rather than Bench's ~98%, since this is deadlift's only
+  -- weekly exposure with no other lower-body work to spread peak-week
+  -- fatigue across.
+  ((select id from day_exercises where day_id = (select id from days where name = 'Heavy') and exercise_id = (select id from exercises where name = 'Deadlift')),
+    1, 1, false, null, 0.80, '[10,10,10,20]'::jsonb, null, 1),
+  ((select id from day_exercises where day_id = (select id from days where name = 'Heavy') and exercise_id = (select id from exercises where name = 'Deadlift')),
+    3, 3, false, null, 0.72, '[5,5,5,5]'::jsonb, null, 2),
   -- Volume
   ((select id from day_exercises where day_id = (select id from days where name = 'Volume') and exercise_id = (select id from exercises where name = 'Bench')),
     5, 5, false, null, 0.770833, '[5,5,5,5]'::jsonb, null, 1),
