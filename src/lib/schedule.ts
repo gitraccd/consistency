@@ -2,6 +2,7 @@
 const WEEKDAY_SCHEDULE: Record<number, string> = {
   1: 'Heavy', // Monday
   4: 'Volume', // Thursday
+  5: 'Deadlift', // Friday
   6: 'Technique', // Saturday
 }
 

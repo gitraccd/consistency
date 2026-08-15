@@ -157,19 +157,22 @@ insert into exercises (name) values
 insert into calibrations (exercise_id)
   select id from exercises where requires_test = true;
 
--- Seed: days
+-- Seed: days. Weekday schedule: Mon=Heavy, Thu=Volume, Fri=Deadlift, Sat=Technique.
 insert into days (name, sort_order) values
   ('Heavy', 1),
   ('Volume', 2),
-  ('Technique', 3);
+  ('Deadlift', 3),
+  ('Technique', 4);
 
--- Seed: day_exercises
+-- Seed: day_exercises. Deadlift is its own dedicated day (Friday), separate
+-- from the Bench days -- Weighted Pull-up stays on Heavy/Volume/Technique
+-- (the Bench days) as before, not moved to the Deadlift day.
 insert into day_exercises (day_id, exercise_id, sort_order) values
   ((select id from days where name = 'Heavy'), (select id from exercises where name = 'Bench'), 1),
   ((select id from days where name = 'Heavy'), (select id from exercises where name = 'Weighted Pull-up'), 2),
   ((select id from days where name = 'Heavy'), (select id from exercises where name = 'Incline DB'), 3),
   ((select id from days where name = 'Heavy'), (select id from exercises where name = 'Chest-Supported Row'), 4),
-  ((select id from days where name = 'Heavy'), (select id from exercises where name = 'Deadlift'), 5),
+  ((select id from days where name = 'Deadlift'), (select id from exercises where name = 'Deadlift'), 1),
   ((select id from days where name = 'Volume'), (select id from exercises where name = 'Bench'), 1),
   ((select id from days where name = 'Volume'), (select id from exercises where name = 'Weighted Pull-up'), 2),
   ((select id from days where name = 'Volume'), (select id from exercises where name = 'Weighted Dip'), 3),
@@ -214,15 +217,15 @@ insert into set_groups (day_exercise_id, reps, num_sets, is_freeform, intensity_
     8, 2, true, null, null, null, null, 1),
   ((select id from day_exercises where day_id = (select id from days where name = 'Heavy') and exercise_id = (select id from exercises where name = 'Chest-Supported Row')),
     8, 2, true, null, null, null, null, 1),
-  -- Deadlift: 1x/week (Heavy day only) given its much higher systemic/spinal
-  -- fatigue cost vs. Bench's 3x/week spread. Trusted test 375x1 @ RPE9 ->
-  -- E1RM ~400 (rpeBased1RM). Percentages mirror Bench's build shape but cap
-  -- at 92.5% E1RM rather than Bench's ~98%, since this is deadlift's only
-  -- weekly exposure with no other lower-body work to spread peak-week
-  -- fatigue across.
-  ((select id from day_exercises where day_id = (select id from days where name = 'Heavy') and exercise_id = (select id from exercises where name = 'Deadlift')),
+  -- Deadlift: its own dedicated day (Friday), 1x/week, given its much
+  -- higher systemic/spinal fatigue cost vs. Bench's 3x/week spread. Trusted
+  -- test 375x1 @ RPE9 -> E1RM ~400 (rpeBased1RM). Percentages mirror Bench's
+  -- build shape but cap at 92.5% E1RM rather than Bench's ~98%, since this
+  -- is deadlift's only weekly exposure with no other lower-body work to
+  -- spread peak-week fatigue across.
+  ((select id from day_exercises where day_id = (select id from days where name = 'Deadlift') and exercise_id = (select id from exercises where name = 'Deadlift')),
     1, 1, false, null, 0.80, '[10,10,10,20]'::jsonb, null, 1),
-  ((select id from day_exercises where day_id = (select id from days where name = 'Heavy') and exercise_id = (select id from exercises where name = 'Deadlift')),
+  ((select id from day_exercises where day_id = (select id from days where name = 'Deadlift') and exercise_id = (select id from exercises where name = 'Deadlift')),
     3, 3, false, null, 0.72, '[5,5,5,5]'::jsonb, null, 2),
   -- Volume
   ((select id from day_exercises where day_id = (select id from days where name = 'Volume') and exercise_id = (select id from exercises where name = 'Bench')),
