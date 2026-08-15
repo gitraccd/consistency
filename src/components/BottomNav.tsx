@@ -1,4 +1,4 @@
-export type NavView = 'home' | 'program'
+export type NavView = 'home' | 'program' | 'lift-tracker'
 
 export function BottomNav({ active, onNavigate }: { active: NavView; onNavigate: (view: NavView) => void }) {
   const items: { view: NavView; label: string }[] = [

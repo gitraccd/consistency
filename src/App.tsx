@@ -7,6 +7,7 @@ import { NewProgramFlow } from './components/NewProgramFlow'
 import { ProgramTable } from './components/ProgramTable'
 import { LogPopover } from './components/LogPopover'
 import { Home } from './components/Home'
+import { LiftTracker } from './components/LiftTracker'
 import { BottomNav, type NavView } from './components/BottomNav'
 
 interface AppData {
@@ -52,6 +53,7 @@ export default function App() {
   const [view, setView] = useState<NavView>('home')
   const [showNewProgram, setShowNewProgram] = useState(false)
   const [activeCell, setActiveCell] = useState<ActiveCell | null>(null)
+  const [liftTrackerDay, setLiftTrackerDay] = useState<string | null>(null)
 
   function refresh() {
     loadData()
@@ -97,7 +99,10 @@ export default function App() {
           program={data.program}
           currentWeek={currentWeek}
           loggedSets={data.loggedSets}
-          onViewProgram={() => setView('program')}
+          onOpenLiftTracker={(dayName) => {
+            setLiftTrackerDay(dayName)
+            setView('lift-tracker')
+          }}
           onNewProgram={() => setShowNewProgram(true)}
         />
       )}
@@ -116,6 +121,22 @@ export default function App() {
           <div className="p-4 text-text-muted">No active block yet — create one from Home.</div>
         ))}
 
+      {view === 'lift-tracker' &&
+        data.program &&
+        (() => {
+          const day = data.template.find((d) => d.name === liftTrackerDay)
+          return day ? (
+            <LiftTracker
+              day={day}
+              currentWeek={currentWeek}
+              weeklyTargets={data.weeklyTargets}
+              loggedSets={data.loggedSets}
+              onCellClick={(setGroup) => setActiveCell({ setGroup, week: currentWeek })}
+              onBack={() => setView('home')}
+            />
+          ) : null
+        })()}
+
       <BottomNav active={view} onNavigate={setView} />
 
       {activeCell && (
@@ -126,10 +147,7 @@ export default function App() {
           label={`${findDayName(data.template, activeCell.setGroup.id)} · ${findExerciseName(data.template, activeCell.setGroup.id)}`}
           targetWeight={activeTarget != null ? String(activeTarget) : null}
           existingLogs={activeLogs}
-          onLogged={() => {
-            refresh()
-            setView('program')
-          }}
+          onLogged={refresh}
           onClose={() => setActiveCell(null)}
         />
       )}
