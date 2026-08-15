@@ -111,6 +111,12 @@ export async function insertLoggedSet(input: {
   return data
 }
 
+/** Deletes a logged set. Does not reverse any calibration update it may have triggered. */
+export async function deleteLoggedSet(id: string): Promise<void> {
+  const { error } = await supabase.from('logged_sets').delete().eq('id', id)
+  if (error) throw error
+}
+
 interface SetGroupWithExercise {
   day_exercise: {
     exercise: Pick<Exercise, 'id' | 'requires_test'>

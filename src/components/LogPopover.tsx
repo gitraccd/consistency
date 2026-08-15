@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { insertLoggedSet, type LoggedSet, type SetGroup } from '../lib/api'
+import { deleteLoggedSet, insertLoggedSet, type LoggedSet, type SetGroup } from '../lib/api'
 import type { WeekNumber } from '../lib/calc'
 
 export function LogPopover({
@@ -27,9 +27,23 @@ export function LogPopover({
   const [rpe, setRpe] = useState('')
   const [isMaxEffort, setIsMaxEffort] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const valid = weight !== '' && reps !== ''
+
+  async function handleDelete(id: string) {
+    setDeletingId(id)
+    setError(null)
+    try {
+      await deleteLoggedSet(id)
+      onLogged()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   async function handleAdd() {
     if (!valid) return
@@ -77,10 +91,20 @@ export function LogPopover({
         {existingLogs.length > 0 && (
           <ul className="space-y-1 text-sm text-text-muted">
             {existingLogs.map((l) => (
-              <li key={l.id}>
-                {l.weight} lb x {l.reps}
-                {l.rpe != null ? ` @ RPE ${l.rpe}` : ''}
-                {l.is_max_effort ? ' — max effort' : ''}
+              <li key={l.id} className="flex items-center justify-between gap-2">
+                <span>
+                  {l.weight} lb x {l.reps}
+                  {l.rpe != null ? ` @ RPE ${l.rpe}` : ''}
+                  {l.is_max_effort ? ' — max effort' : ''}
+                </span>
+                <button
+                  onClick={() => handleDelete(l.id)}
+                  disabled={deletingId === l.id}
+                  aria-label="Delete set"
+                  className="px-1 text-text-muted hover:text-danger disabled:opacity-40"
+                >
+                  ✕
+                </button>
               </li>
             ))}
           </ul>
