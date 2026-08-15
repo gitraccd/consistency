@@ -2,7 +2,7 @@
 -- Run this in the Supabase SQL Editor (Project > SQL Editor > New query).
 --
 -- Models the real program structure: a block runs 3 training days per week
--- (Heavy / Volume / Pause), each day has several exercises, and a single
+-- (Heavy / Volume / Technique), each day has several exercises, and a single
 -- exercise can have multiple independent set/rep/weight schemes within one
 -- day (e.g. Heavy Bench = a top single AND a separate back-off scheme).
 -- Days/exercises/set_groups are a fixed template (seeded once, not
@@ -51,7 +51,7 @@ create table exercises (
   created_at timestamptz not null default now()
 );
 
--- Heavy / Volume / Pause -- the fixed weekly training-day split.
+-- Heavy / Volume / Technique -- the fixed weekly training-day split.
 create table days (
   id uuid primary key default gen_random_uuid(),
   name text not null unique,
@@ -161,7 +161,7 @@ insert into calibrations (exercise_id)
 insert into days (name, sort_order) values
   ('Heavy', 1),
   ('Volume', 2),
-  ('Pause', 3);
+  ('Technique', 3);
 
 -- Seed: day_exercises
 insert into day_exercises (day_id, exercise_id, sort_order) values
@@ -174,24 +174,24 @@ insert into day_exercises (day_id, exercise_id, sort_order) values
   ((select id from days where name = 'Volume'), (select id from exercises where name = 'Weighted Pull-up'), 2),
   ((select id from days where name = 'Volume'), (select id from exercises where name = 'Weighted Dip'), 3),
   ((select id from days where name = 'Volume'), (select id from exercises where name = 'Chest-Supported Row'), 4),
-  ((select id from days where name = 'Pause'), (select id from exercises where name = 'Paused Bench'), 1),
-  ((select id from days where name = 'Pause'), (select id from exercises where name = 'Weighted Pull-up'), 2),
-  ((select id from days where name = 'Pause'), (select id from exercises where name = 'Incline DB'), 3),
-  ((select id from days where name = 'Pause'), (select id from exercises where name = 'Chest-Supported Row'), 4);
+  ((select id from days where name = 'Technique'), (select id from exercises where name = 'Paused Bench'), 1),
+  ((select id from days where name = 'Technique'), (select id from exercises where name = 'Weighted Pull-up'), 2),
+  ((select id from days where name = 'Technique'), (select id from exercises where name = 'Incline DB'), 3),
+  ((select id from days where name = 'Technique'), (select id from exercises where name = 'Chest-Supported Row'), 4);
 
 -- Seed: set_groups. Percentages back-calculated against a 240lb E1RM
 -- (225x1 @ RPE9, the real test this spreadsheet was built from):
 --   Heavy top single  195/240 = 0.8125
 --   Heavy back-off     180/240 = 0.75
 --   Volume top set     185/240 = 0.770833
---   Pause top set      175/240 = 0.729167
+--   Technique top set   175/240 = 0.729167
 -- Increments are the cumulative additive weekly jumps observed in the
 -- spreadsheet (week2 = week1 + increments[0], week3 = week1 + [0]+[1], ...).
 --
 -- Weighted Pull-up uses weekly_plan (RPE-autoregulated, no tested E1RM)
 -- instead of week1_percentage/increments -- see database.types.ts
 -- WeeklyPlanEntry. Decided 2026-08-14: Heavy day = top single + back-off,
--- Volume day = 4-8 rep volume work, Pause day = light bodyweight pulling
+-- Volume day = 4-8 rep volume work, Technique day = light bodyweight pulling
 -- (kept flat, no weekly_plan -- it's meant to stay low-fatigue all block,
 -- not progress). Base reps/num_sets on rows with a weekly_plan are just the
 -- week-1 fallback for exercises that read weekly_plan; the UI should prefer
@@ -235,14 +235,14 @@ insert into set_groups (day_exercise_id, reps, num_sets, is_freeform, intensity_
     5, 3, true, null, null, null, null, 1),
   ((select id from day_exercises where day_id = (select id from days where name = 'Volume') and exercise_id = (select id from exercises where name = 'Chest-Supported Row')),
     8, 2, true, null, null, null, null, 1),
-  -- Pause
-  ((select id from day_exercises where day_id = (select id from days where name = 'Pause') and exercise_id = (select id from exercises where name = 'Paused Bench')),
-    4, 5, false, null, 0.729167, '[5,5,5,5]'::jsonb, null, 1),
-  ((select id from day_exercises where day_id = (select id from days where name = 'Pause') and exercise_id = (select id from exercises where name = 'Weighted Pull-up')),
+  -- Technique
+  ((select id from day_exercises where day_id = (select id from days where name = 'Technique') and exercise_id = (select id from exercises where name = 'Paused Bench')),
+    5, 4, false, null, 0.729167, '[5,5,5,5]'::jsonb, null, 1),
+  ((select id from day_exercises where day_id = (select id from days where name = 'Technique') and exercise_id = (select id from exercises where name = 'Weighted Pull-up')),
     5, 3, true, 'Light bodyweight pulling -- keep pulling fatigue low', null, null, null, 1),
-  ((select id from day_exercises where day_id = (select id from days where name = 'Pause') and exercise_id = (select id from exercises where name = 'Incline DB')),
+  ((select id from day_exercises where day_id = (select id from days where name = 'Technique') and exercise_id = (select id from exercises where name = 'Incline DB')),
     8, 2, true, null, null, null, null, 1),
-  ((select id from day_exercises where day_id = (select id from days where name = 'Pause') and exercise_id = (select id from exercises where name = 'Chest-Supported Row')),
+  ((select id from day_exercises where day_id = (select id from days where name = 'Technique') and exercise_id = (select id from exercises where name = 'Chest-Supported Row')),
     8, 2, true, null, null, null, null, 1);
 
 -- RLS: enabled on every table. This app has no login (personal, single-user

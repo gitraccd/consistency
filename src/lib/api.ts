@@ -19,6 +19,7 @@ export type Calibration = Database['public']['Tables']['calibrations']['Row']
 
 export interface DayExerciseWithDetails {
   id: string
+  sort_order: number
   exercise: Exercise
   set_groups: SetGroup[]
 }
@@ -31,13 +32,13 @@ export interface DayWithExercises extends Day {
 export async function fetchTemplate(): Promise<DayWithExercises[]> {
   const { data, error } = await supabase
     .from('days')
-    .select('*, day_exercises(id, exercise:exercises(*), set_groups(*))')
+    .select('*, day_exercises(id, sort_order, exercise:exercises(*), set_groups(*))')
     .order('sort_order')
   if (error) throw error
 
   const days = data as unknown as DayWithExercises[]
   for (const day of days) {
-    day.day_exercises.sort((a, b) => a.exercise.name.localeCompare(b.exercise.name))
+    day.day_exercises.sort((a, b) => a.sort_order - b.sort_order)
     for (const de of day.day_exercises) {
       de.set_groups.sort((a, b) => a.sort_order - b.sort_order)
     }

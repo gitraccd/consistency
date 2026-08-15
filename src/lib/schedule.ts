@@ -2,7 +2,7 @@
 const WEEKDAY_SCHEDULE: Record<number, string> = {
   1: 'Heavy', // Monday
   4: 'Volume', // Thursday
-  6: 'Pause', // Saturday
+  6: 'Technique', // Saturday
 }
 
 /** Which training day (if any) is scheduled for the given date. */
