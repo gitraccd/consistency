@@ -1,4 +1,4 @@
-import type { ExerciseTestMode } from './database.types'
+import type { ExerciseTestMode, WeeklyPlanEntry } from './database.types'
 
 export const PLATE_INCREMENT = 5
 
@@ -82,6 +82,12 @@ export function computeWeeklyTargets(
     targets[(i + 2) as TargetWeek] = roundToIncrement(cumulative)
   })
   return targets
+}
+
+/** This week's row from an RPE-autoregulated set_group's weekly_plan, if any (week 6/deload never has one). */
+export function weeklyPlanEntryFor(weeklyPlan: WeeklyPlanEntry[] | null, week: WeekNumber): WeeklyPlanEntry | null {
+  if (weeklyPlan == null) return null
+  return weeklyPlan.find((entry) => entry.week === week) ?? null
 }
 
 /** How much an EMA update weights the newest data point vs. calibration history. */

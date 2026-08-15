@@ -1,5 +1,19 @@
 export type ExerciseTestMode = 'raw_epley' | 'rpe_based' | 'manual_e1rm'
 
+/**
+ * One week's row for an RPE-autoregulated set_group (e.g. Weighted Pull-up's
+ * Heavy top single) -- an alternative to week1_percentage/increments for
+ * progressions that target an RPE/RIR feel rather than a fixed %E1RM, since
+ * there's no tested E1RM to compute a weight target from.
+ */
+export interface WeeklyPlanEntry {
+  week: 1 | 2 | 3 | 4 | 5
+  sets: number
+  reps: number
+  target_rpe: string | null
+  note: string | null
+}
+
 type ExerciseFk = {
   foreignKeyName: 'exercise_id_fkey'
   columns: ['exercise_id']
@@ -115,6 +129,7 @@ export interface Database {
           intensity_note: string | null
           week1_percentage: number | null
           increments: [number, number, number, number] | null
+          weekly_plan: WeeklyPlanEntry[] | null
           sort_order: number
         }
         Insert: {
@@ -126,6 +141,7 @@ export interface Database {
           intensity_note?: string | null
           week1_percentage?: number | null
           increments?: [number, number, number, number] | null
+          weekly_plan?: WeeklyPlanEntry[] | null
           sort_order?: number
         }
         Update: Partial<Database['public']['Tables']['set_groups']['Insert']>

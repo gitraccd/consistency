@@ -1,5 +1,5 @@
 import type { DayWithExercises, LoggedSet, SetGroup, WeeklyTarget } from '../lib/api'
-import type { WeekNumber } from '../lib/calc'
+import { weeklyPlanEntryFor, type WeekNumber } from '../lib/calc'
 
 function targetFor(setGroup: SetGroup, week: WeekNumber, weeklyTargets: WeeklyTarget[]): string | null {
   if (week === 6) return null
@@ -51,6 +51,7 @@ export function LiftTracker({
           {day.day_exercises.map((de) =>
             de.set_groups.map((sg) => {
               const target = targetFor(sg, currentWeek, weeklyTargets)
+              const plan = weeklyPlanEntryFor(sg.weekly_plan, currentWeek)
               const logs = loggedSets.filter((s) => s.set_group_id === sg.id && s.week_number === currentWeek)
               const best = logs.reduce<LoggedSet | null>(
                 (b, s) => (b === null || s.weight > b.weight ? s : b),
@@ -65,14 +66,18 @@ export function LiftTracker({
                   <div>
                     <div className="font-medium">{de.exercise.name}</div>
                     <div className="text-xs text-text-muted">
-                      {sg.num_sets}x{sg.reps}
-                      {sg.intensity_note ? ` · ${sg.intensity_note}` : ''}
+                      {plan ? `${plan.sets}x${plan.reps}` : `${sg.num_sets}x${sg.reps}`}
+                      {plan?.note ? ` · ${plan.note}` : sg.intensity_note ? ` · ${sg.intensity_note}` : ''}
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className={target ? 'text-text' : 'text-text-muted/50'}>
-                      {currentWeek === 6 ? 'Deload' : (target ?? '—')}
-                    </div>
+                    {plan ? (
+                      <div className="text-text">{plan.target_rpe ? `RPE ${plan.target_rpe}` : '—'}</div>
+                    ) : (
+                      <div className={target ? 'text-text' : 'text-text-muted/50'}>
+                        {currentWeek === 6 ? 'Deload' : (target ?? '—')}
+                      </div>
+                    )}
                     {best && <div className="text-xs text-success">{best.weight}x{best.reps}</div>}
                   </div>
                 </button>

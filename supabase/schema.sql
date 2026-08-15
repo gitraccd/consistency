@@ -71,6 +71,10 @@ create table day_exercises (
 -- Repeated identical spreadsheet rows (e.g. 4 rows of "3 @ 180/190/...")
 -- collapse into one row with num_sets=4. week1_percentage/increments are
 -- only set when is_freeform=false.
+-- weekly_plan holds a WeeklyPlanEntry[] (see database.types.ts) for
+-- RPE-autoregulated progressions that don't have a tested E1RM to derive a
+-- weight target from (e.g. Weighted Pull-up) -- an alternative to
+-- week1_percentage/increments, not used together with it.
 create table set_groups (
   id uuid primary key default gen_random_uuid(),
   day_exercise_id uuid not null references day_exercises(id) on delete cascade,
@@ -80,6 +84,7 @@ create table set_groups (
   intensity_note text,
   week1_percentage numeric,
   increments jsonb,
+  weekly_plan jsonb,
   sort_order int not null default 0
 );
 
@@ -178,36 +183,53 @@ insert into day_exercises (day_id, exercise_id, sort_order) values
 --   Pause top set      175/240 = 0.729167
 -- Increments are the cumulative additive weekly jumps observed in the
 -- spreadsheet (week2 = week1 + increments[0], week3 = week1 + [0]+[1], ...).
-insert into set_groups (day_exercise_id, reps, num_sets, is_freeform, intensity_note, week1_percentage, increments, sort_order) values
+--
+-- Weighted Pull-up uses weekly_plan (RPE-autoregulated, no tested E1RM)
+-- instead of week1_percentage/increments -- see database.types.ts
+-- WeeklyPlanEntry. Decided 2026-08-14: Heavy day = top single + back-off,
+-- Volume day = 4-8 rep volume work, Pause day = light bodyweight pulling
+-- (kept flat, no weekly_plan -- it's meant to stay low-fatigue all block,
+-- not progress). Base reps/num_sets on rows with a weekly_plan are just the
+-- week-1 fallback for exercises that read weekly_plan; the UI should prefer
+-- the current week's weekly_plan entry when one exists.
+insert into set_groups (day_exercise_id, reps, num_sets, is_freeform, intensity_note, week1_percentage, increments, weekly_plan, sort_order) values
   -- Heavy
   ((select id from day_exercises where day_id = (select id from days where name = 'Heavy') and exercise_id = (select id from exercises where name = 'Bench')),
-    1, 1, false, null, 0.8125, '[5,10,10,15]'::jsonb, 1),
+    1, 1, false, null, 0.8125, '[5,10,10,15]'::jsonb, null, 1),
   ((select id from day_exercises where day_id = (select id from days where name = 'Heavy') and exercise_id = (select id from exercises where name = 'Bench')),
-    3, 4, false, null, 0.75, '[10,10,5,10]'::jsonb, 2),
+    3, 4, false, null, 0.75, '[10,10,5,10]'::jsonb, null, 2),
   ((select id from day_exercises where day_id = (select id from days where name = 'Heavy') and exercise_id = (select id from exercises where name = 'Weighted Pull-up')),
-    5, 4, true, 'Moderate Intensity', null, null, 1),
+    1, 1, true, null, null, null,
+    '[{"week":1,"sets":1,"reps":1,"target_rpe":"7.5-8","note":"Top single"},{"week":2,"sets":1,"reps":1,"target_rpe":"~8","note":"Top single"},{"week":3,"sets":1,"reps":1,"target_rpe":"8-8.5","note":"Top single"},{"week":4,"sets":1,"reps":1,"target_rpe":"8.5-9","note":"Top single"},{"week":5,"sets":1,"reps":1,"target_rpe":"9-9.5","note":"Test: heavy single"}]'::jsonb,
+    1),
+  ((select id from day_exercises where day_id = (select id from days where name = 'Heavy') and exercise_id = (select id from exercises where name = 'Weighted Pull-up')),
+    3, 2, true, null, null, null,
+    '[{"week":1,"sets":2,"reps":3,"target_rpe":null,"note":"~85-88% of top single"},{"week":2,"sets":3,"reps":2,"target_rpe":null,"note":"~85-88% of top single"},{"week":3,"sets":2,"reps":2,"target_rpe":null,"note":"~87-90% of top single"},{"week":4,"sets":1,"reps":2,"target_rpe":null,"note":"~90% of top single"},{"week":5,"sets":0,"reps":0,"target_rpe":null,"note":"Skip - test day"}]'::jsonb,
+    2),
   ((select id from day_exercises where day_id = (select id from days where name = 'Heavy') and exercise_id = (select id from exercises where name = 'Incline DB')),
-    8, 2, true, null, null, null, 1),
+    8, 2, true, null, null, null, null, 1),
   ((select id from day_exercises where day_id = (select id from days where name = 'Heavy') and exercise_id = (select id from exercises where name = 'Chest-Supported Row')),
-    8, 2, true, null, null, null, 1),
+    8, 2, true, null, null, null, null, 1),
   -- Volume
   ((select id from day_exercises where day_id = (select id from days where name = 'Volume') and exercise_id = (select id from exercises where name = 'Bench')),
-    5, 5, false, null, 0.770833, '[5,5,5,5]'::jsonb, 1),
+    5, 5, false, null, 0.770833, '[5,5,5,5]'::jsonb, null, 1),
   ((select id from day_exercises where day_id = (select id from days where name = 'Volume') and exercise_id = (select id from exercises where name = 'Weighted Pull-up')),
-    6, 4, true, 'Moderate Intensity', null, null, 1),
+    6, 3, true, null, null, null,
+    '[{"week":1,"sets":3,"reps":6,"target_rpe":"RIR 3","note":null},{"week":2,"sets":4,"reps":6,"target_rpe":"RIR 2-3","note":null},{"week":3,"sets":5,"reps":6,"target_rpe":"RIR 2-3","note":null},{"week":4,"sets":4,"reps":6,"target_rpe":"RIR 2","note":"Last set to RIR 1"},{"week":5,"sets":2,"reps":5,"target_rpe":"RIR 3","note":"Deload"}]'::jsonb,
+    1),
   ((select id from day_exercises where day_id = (select id from days where name = 'Volume') and exercise_id = (select id from exercises where name = 'Weighted Dip')),
-    5, 3, true, null, null, null, 1),
+    5, 3, true, null, null, null, null, 1),
   ((select id from day_exercises where day_id = (select id from days where name = 'Volume') and exercise_id = (select id from exercises where name = 'Chest-Supported Row')),
-    8, 2, true, null, null, null, 1),
+    8, 2, true, null, null, null, null, 1),
   -- Pause
   ((select id from day_exercises where day_id = (select id from days where name = 'Pause') and exercise_id = (select id from exercises where name = 'Paused Bench')),
-    4, 5, false, null, 0.729167, '[5,5,5,5]'::jsonb, 1),
+    4, 5, false, null, 0.729167, '[5,5,5,5]'::jsonb, null, 1),
   ((select id from day_exercises where day_id = (select id from days where name = 'Pause') and exercise_id = (select id from exercises where name = 'Weighted Pull-up')),
-    5, 5, true, 'Moderate Intensity', null, null, 1),
+    5, 3, true, 'Light bodyweight pulling -- keep pulling fatigue low', null, null, null, 1),
   ((select id from day_exercises where day_id = (select id from days where name = 'Pause') and exercise_id = (select id from exercises where name = 'Incline DB')),
-    8, 2, true, null, null, null, 1),
+    8, 2, true, null, null, null, null, 1),
   ((select id from day_exercises where day_id = (select id from days where name = 'Pause') and exercise_id = (select id from exercises where name = 'Chest-Supported Row')),
-    8, 2, true, null, null, null, 1);
+    8, 2, true, null, null, null, null, 1);
 
 -- RLS: enabled on every table. This app has no login (personal, single-user
 -- tool), so policies are permissive for any request carrying the

@@ -1,5 +1,5 @@
 import type { DayWithExercises, LoggedSet, Program, SetGroup, WeeklyTarget } from '../lib/api'
-import type { WeekNumber } from '../lib/calc'
+import { weeklyPlanEntryFor, type WeekNumber } from '../lib/calc'
 
 const WEEKS: WeekNumber[] = [1, 2, 3, 4, 5, 6]
 
@@ -67,6 +67,7 @@ export function ProgramTable({
                       </td>
                       {WEEKS.map((week) => {
                         const target = targetFor(sg, week, weeklyTargets)
+                        const plan = weeklyPlanEntryFor(sg.weekly_plan, week)
                         const logs = loggedSets.filter((s) => s.set_group_id === sg.id && s.week_number === week)
                         const best = logs.reduce<LoggedSet | null>(
                           (b, s) => (b === null || s.weight > b.weight ? s : b),
@@ -80,9 +81,16 @@ export function ProgramTable({
                               week === currentWeek ? 'bg-surface-2/60' : ''
                             }`}
                           >
-                            <div className={target ? 'text-text' : 'text-text-muted/50'}>
-                              {week === 6 ? 'Deload' : (target ?? '—')}
-                            </div>
+                            {plan ? (
+                              <div className="text-text">
+                                {plan.sets}x{plan.reps}
+                                {plan.target_rpe ? ` @ RPE ${plan.target_rpe}` : ''}
+                              </div>
+                            ) : (
+                              <div className={target ? 'text-text' : 'text-text-muted/50'}>
+                                {week === 6 ? 'Deload' : (target ?? '—')}
+                              </div>
+                            )}
                             {best && (
                               <div className="text-xs text-success">
                                 {best.weight}x{best.reps}
