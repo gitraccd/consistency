@@ -65,10 +65,12 @@ export function LiftTracker({
                 >
                   <div>
                     <div className="font-medium">{de.exercise.name}</div>
-                    <div className="text-xs text-text-muted">
-                      {plan ? `${plan.sets}x${plan.reps}` : `${sg.num_sets}x${sg.reps}`}
-                      {plan?.note ? ` · ${plan.note}` : sg.intensity_note ? ` · ${sg.intensity_note}` : ''}
-                    </div>
+                    {(plan || sg.num_sets > 0 || sg.intensity_note) && (
+                      <div className="text-xs text-text-muted">
+                        {plan ? `${plan.sets}x${plan.reps}` : sg.num_sets > 0 ? `${sg.num_sets}x${sg.reps}` : ''}
+                        {plan?.note ? ` · ${plan.note}` : sg.intensity_note ? ` · ${sg.intensity_note}` : ''}
+                      </div>
+                    )}
                   </div>
                   <div className="text-right">
                     {plan ? (

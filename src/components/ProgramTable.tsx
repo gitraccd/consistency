@@ -60,10 +60,12 @@ export function ProgramTable({
                     <tr key={sg.id} className="border-t border-border">
                       <td className="sticky left-0 z-10 bg-surface p-2 align-top">
                         <div className="font-medium">{de.exercise.name}</div>
-                        <div className="text-xs text-text-muted">
-                          {sg.num_sets}x{sg.reps}
-                          {sg.intensity_note ? ` · ${sg.intensity_note}` : ''}
-                        </div>
+                        {(sg.num_sets > 0 || sg.intensity_note) && (
+                          <div className="text-xs text-text-muted">
+                            {sg.num_sets > 0 ? `${sg.num_sets}x${sg.reps}` : ''}
+                            {sg.intensity_note ? ` · ${sg.intensity_note}` : ''}
+                          </div>
+                        )}
                       </td>
                       {WEEKS.map((week) => {
                         const target = targetFor(sg, week, weeklyTargets)

@@ -142,14 +142,17 @@ create table calibrations (
 
 -- Seed: exercises. Bench and Deadlift are tested exercises; Paused Bench
 -- derives its E1RM from Bench at a lower percentage. Everything else is
--- freeform. Deadlift is Heavy-day only (1x/week) given its much higher
--- systemic/spinal fatigue cost vs. Bench's 3x/week spread.
+-- freeform. Deadlift has its own dedicated day (1x/week) given its much
+-- higher systemic/spinal fatigue cost vs. Bench's 3x/week spread. Pull-up
+-- is a distinct exercise from Weighted Pull-up -- bodyweight-only, used for
+-- Technique day's light/no-fatigue pulling work, no set/rep prescription.
 insert into exercises (name, requires_test) values ('Bench', true);
 insert into exercises (name, requires_test, e1rm_source_exercise_id)
   values ('Paused Bench', false, (select id from exercises where name = 'Bench'));
 insert into exercises (name, requires_test) values ('Deadlift', true);
 insert into exercises (name) values
   ('Weighted Pull-up'),
+  ('Pull-up'),
   ('Incline DB'),
   ('Chest-Supported Row'),
   ('Weighted Dip');
@@ -178,7 +181,7 @@ insert into day_exercises (day_id, exercise_id, sort_order) values
   ((select id from days where name = 'Volume'), (select id from exercises where name = 'Weighted Dip'), 3),
   ((select id from days where name = 'Volume'), (select id from exercises where name = 'Chest-Supported Row'), 4),
   ((select id from days where name = 'Technique'), (select id from exercises where name = 'Paused Bench'), 1),
-  ((select id from days where name = 'Technique'), (select id from exercises where name = 'Weighted Pull-up'), 2),
+  ((select id from days where name = 'Technique'), (select id from exercises where name = 'Pull-up'), 2),
   ((select id from days where name = 'Technique'), (select id from exercises where name = 'Incline DB'), 3),
   ((select id from days where name = 'Technique'), (select id from exercises where name = 'Chest-Supported Row'), 4);
 
@@ -241,8 +244,8 @@ insert into set_groups (day_exercise_id, reps, num_sets, is_freeform, intensity_
   -- Technique
   ((select id from day_exercises where day_id = (select id from days where name = 'Technique') and exercise_id = (select id from exercises where name = 'Paused Bench')),
     5, 4, false, null, 0.729167, '[5,5,5,5]'::jsonb, null, 1),
-  ((select id from day_exercises where day_id = (select id from days where name = 'Technique') and exercise_id = (select id from exercises where name = 'Weighted Pull-up')),
-    5, 3, true, 'Light bodyweight pulling -- keep pulling fatigue low', null, null, null, 1),
+  ((select id from day_exercises where day_id = (select id from days where name = 'Technique') and exercise_id = (select id from exercises where name = 'Pull-up')),
+    0, 0, true, null, null, null, null, 1),
   ((select id from day_exercises where day_id = (select id from days where name = 'Technique') and exercise_id = (select id from exercises where name = 'Incline DB')),
     8, 2, true, null, null, null, null, 1),
   ((select id from day_exercises where day_id = (select id from days where name = 'Technique') and exercise_id = (select id from exercises where name = 'Chest-Supported Row')),

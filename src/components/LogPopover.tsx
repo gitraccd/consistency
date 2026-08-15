@@ -22,7 +22,7 @@ export function LogPopover({
   onClose: () => void
 }) {
   const [weight, setWeight] = useState(targetWeight ?? '')
-  const [reps, setReps] = useState(String(setGroup.reps))
+  const [reps, setReps] = useState(setGroup.reps > 0 ? String(setGroup.reps) : '')
   const [showMore, setShowMore] = useState(false)
   const [rpe, setRpe] = useState('')
   const [isMaxEffort, setIsMaxEffort] = useState(false)
