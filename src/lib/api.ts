@@ -58,6 +58,7 @@ export async function fetchLatestProgram(): Promise<Program | null> {
     .from('programs')
     .select('*')
     .order('start_date', { ascending: false })
+    .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
   if (error) throw error
