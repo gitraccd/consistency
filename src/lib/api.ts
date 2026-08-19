@@ -16,6 +16,7 @@ export type Program = Database['public']['Tables']['programs']['Row']
 export type WeeklyTarget = Database['public']['Tables']['weekly_targets']['Row']
 export type LoggedSet = Database['public']['Tables']['logged_sets']['Row']
 export type Calibration = Database['public']['Tables']['calibrations']['Row']
+export type NutritionLog = Database['public']['Tables']['nutrition_logs']['Row']
 
 export interface DayExerciseWithDetails {
   id: string
@@ -266,4 +267,36 @@ export async function createProgram(startDate: string, plans: ExerciseTestPlan[]
   }
 
   return program
+}
+
+export async function fetchNutritionLog(logDate: string): Promise<NutritionLog | null> {
+  const { data, error } = await supabase.from('nutrition_logs').select('*').eq('log_date', logDate).maybeSingle()
+  if (error) throw error
+  return data
+}
+
+/** All nutrition_logs rows from sinceDate (inclusive) onward, most recent first. */
+export async function fetchRecentNutritionLogs(sinceDate: string): Promise<NutritionLog[]> {
+  const { data, error } = await supabase
+    .from('nutrition_logs')
+    .select('*')
+    .gte('log_date', sinceDate)
+    .order('log_date', { ascending: false })
+  if (error) throw error
+  return data
+}
+
+/** Upserts today's calories/protein -- one row per date, not append-only. */
+export async function upsertNutritionLog(input: {
+  logDate: string
+  calories: number | null
+  protein: number | null
+}): Promise<NutritionLog> {
+  const { data, error } = await supabase
+    .from('nutrition_logs')
+    .upsert({ log_date: input.logDate, calories: input.calories, protein: input.protein }, { onConflict: 'log_date' })
+    .select()
+    .single()
+  if (error) throw error
+  return data
 }

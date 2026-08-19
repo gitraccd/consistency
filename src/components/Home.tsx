@@ -1,18 +1,30 @@
-import type { LoggedSet, Program } from '../lib/api'
+import type { LoggedSet, NutritionLog, Program } from '../lib/api'
 import type { WeekNumber } from '../lib/calc'
 import { scheduledDayName } from '../lib/schedule'
+
+function nutritionSummary(log: NutritionLog | null): string {
+  if (!log) return 'Log today’s nutrition'
+  const parts: string[] = []
+  if (log.calories != null) parts.push(`${log.calories} cal`)
+  if (log.protein != null) parts.push(`${log.protein}g protein`)
+  return parts.length > 0 ? parts.join(' · ') : 'Log today’s nutrition'
+}
 
 export function Home({
   program,
   currentWeek,
   loggedSets,
+  todaysNutritionLog,
   onOpenLiftTracker,
+  onOpenNutrition,
   onNewProgram,
 }: {
   program: Program | null
   currentWeek: WeekNumber
   loggedSets: LoggedSet[]
+  todaysNutritionLog: NutritionLog | null
   onOpenLiftTracker: (dayName: string) => void
+  onOpenNutrition: () => void
   onNewProgram: () => void
 }) {
   const weekLogs = program ? loggedSets.filter((s) => s.week_number === currentWeek) : []
@@ -50,10 +62,10 @@ export function Home({
           <p className="text-sm text-text-muted">{todaysDay ?? 'Rest day'}</p>
         </button>
 
-        <div className="rounded-xl bg-surface-2 p-4 text-left opacity-40">
+        <button onClick={onOpenNutrition} className="rounded-xl bg-surface-2 p-4 text-left">
           <p className="font-medium">Calories</p>
-          <p className="text-sm text-text-muted">Coming soon</p>
-        </div>
+          <p className="text-sm text-text-muted">{nutritionSummary(todaysNutritionLog)}</p>
+        </button>
       </div>
 
       <button onClick={onNewProgram} className="w-full rounded-xl bg-accent py-3 font-medium text-accent-text">

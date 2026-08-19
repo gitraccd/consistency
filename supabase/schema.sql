@@ -29,6 +29,7 @@ drop table if exists exercises cascade;
 drop table if exists test_lifts cascade;
 drop table if exists lifts cascade;
 drop table if exists programs cascade;
+drop table if exists nutrition_logs cascade;
 
 create extension if not exists pgcrypto;
 
@@ -138,6 +139,19 @@ create table calibrations (
   correction_factor numeric not null default 1.0,
   data_point_count int not null default 0,
   updated_at timestamptz not null default now()
+);
+
+-- Daily calorie/protein tracking for the cut, on its own dedicated screen
+-- (not folded into logged_sets/programs). One row per calendar date,
+-- upserted -- there's only ever "today's numbers," not a history of
+-- same-day re-entries. Bodyweight is tracked separately, elsewhere, by
+-- design -- not in this app.
+create table nutrition_logs (
+  id uuid primary key default gen_random_uuid(),
+  log_date date not null unique,
+  calories numeric,
+  protein numeric,
+  created_at timestamptz not null default now()
 );
 
 -- Seed: exercises. Bench and Deadlift are tested exercises; Paused Bench
@@ -266,6 +280,7 @@ alter table exercise_tests enable row level security;
 alter table weekly_targets enable row level security;
 alter table logged_sets enable row level security;
 alter table calibrations enable row level security;
+alter table nutrition_logs enable row level security;
 
 create policy "public all programs" on programs for all using (true) with check (true);
 create policy "public all exercises" on exercises for all using (true) with check (true);
@@ -276,3 +291,4 @@ create policy "public all exercise_tests" on exercise_tests for all using (true)
 create policy "public all weekly_targets" on weekly_targets for all using (true) with check (true);
 create policy "public all logged_sets" on logged_sets for all using (true) with check (true);
 create policy "public all calibrations" on calibrations for all using (true) with check (true);
+create policy "public all nutrition_logs" on nutrition_logs for all using (true) with check (true);

@@ -1,11 +1,21 @@
 import { useEffect, useState } from 'react'
-import type { DayWithExercises, Exercise, LoggedSet, Program, SetGroup, WeeklyTarget } from './lib/api'
-import { fetchTemplate, fetchTestableExercises, fetchLatestProgram, fetchWeeklyTargets, fetchLoggedSets } from './lib/api'
+import type { DayWithExercises, Exercise, LoggedSet, NutritionLog, Program, SetGroup, WeeklyTarget } from './lib/api'
+import {
+  fetchTemplate,
+  fetchTestableExercises,
+  fetchLatestProgram,
+  fetchWeeklyTargets,
+  fetchLoggedSets,
+  fetchNutritionLog,
+  fetchRecentNutritionLogs,
+} from './lib/api'
 import { currentWeekNumber } from './lib/weeks'
 import type { WeekNumber } from './lib/calc'
+import { isoDateDaysAgo, todayIsoDate } from './lib/schedule'
 import { NewProgramFlow } from './components/NewProgramFlow'
 import { ProgramTable } from './components/ProgramTable'
 import { LogPopover } from './components/LogPopover'
+import { Nutrition } from './components/Nutrition'
 import { Home } from './components/Home'
 import { LiftTracker } from './components/LiftTracker'
 import { BottomNav, type NavView } from './components/BottomNav'
@@ -16,14 +26,31 @@ interface AppData {
   program: Program | null
   weeklyTargets: WeeklyTarget[]
   loggedSets: LoggedSet[]
+  todaysNutritionLog: NutritionLog | null
+  recentNutritionLogs: NutritionLog[]
 }
 
 async function loadData(): Promise<AppData> {
-  const [template, testableExercises] = await Promise.all([fetchTemplate(), fetchTestableExercises()])
+  const [template, testableExercises, todaysNutritionLog, recentNutritionLogs] = await Promise.all([
+    fetchTemplate(),
+    fetchTestableExercises(),
+    fetchNutritionLog(todayIsoDate()),
+    fetchRecentNutritionLogs(isoDateDaysAgo(6)),
+  ])
   const program = await fetchLatestProgram()
-  if (!program) return { template, testableExercises, program: null, weeklyTargets: [], loggedSets: [] }
+  if (!program) {
+    return {
+      template,
+      testableExercises,
+      program: null,
+      weeklyTargets: [],
+      loggedSets: [],
+      todaysNutritionLog,
+      recentNutritionLogs,
+    }
+  }
   const [weeklyTargets, loggedSets] = await Promise.all([fetchWeeklyTargets(program.id), fetchLoggedSets(program.id)])
-  return { template, testableExercises, program, weeklyTargets, loggedSets }
+  return { template, testableExercises, program, weeklyTargets, loggedSets, todaysNutritionLog, recentNutritionLogs }
 }
 
 function findDayName(template: DayWithExercises[], setGroupId: string): string {
@@ -99,10 +126,12 @@ export default function App() {
           program={data.program}
           currentWeek={currentWeek}
           loggedSets={data.loggedSets}
+          todaysNutritionLog={data.todaysNutritionLog}
           onOpenLiftTracker={(dayName) => {
             setLiftTrackerDay(dayName)
             setView('lift-tracker')
           }}
+          onOpenNutrition={() => setView('nutrition')}
           onNewProgram={() => setShowNewProgram(true)}
         />
       )}
@@ -136,6 +165,15 @@ export default function App() {
             />
           ) : null
         })()}
+
+      {view === 'nutrition' && (
+        <Nutrition
+          today={data.todaysNutritionLog}
+          recent={data.recentNutritionLogs}
+          onSaved={refresh}
+          onBack={() => setView('home')}
+        />
+      )}
 
       <BottomNav active={view} onNavigate={setView} />
 

@@ -239,6 +239,24 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['calibrations']['Insert']>
         Relationships: [ExerciseFk]
       }
+      nutrition_logs: {
+        Row: {
+          id: string
+          log_date: string
+          calories: number | null
+          protein: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          log_date: string
+          calories?: number | null
+          protein?: number | null
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['nutrition_logs']['Insert']>
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: Record<string, never>
