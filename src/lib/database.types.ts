@@ -243,16 +243,18 @@ export interface Database {
         Row: {
           id: string
           log_date: string
+          label: string | null
           calories: number | null
           protein: number | null
-          created_at: string
+          logged_at: string
         }
         Insert: {
           id?: string
           log_date: string
+          label?: string | null
           calories?: number | null
           protein?: number | null
-          created_at?: string
+          logged_at?: string
         }
         Update: Partial<Database['public']['Tables']['nutrition_logs']['Insert']>
         Relationships: []

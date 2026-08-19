@@ -6,7 +6,6 @@ import {
   fetchLatestProgram,
   fetchWeeklyTargets,
   fetchLoggedSets,
-  fetchNutritionLog,
   fetchRecentNutritionLogs,
 } from './lib/api'
 import { currentWeekNumber } from './lib/weeks'
@@ -26,31 +25,21 @@ interface AppData {
   program: Program | null
   weeklyTargets: WeeklyTarget[]
   loggedSets: LoggedSet[]
-  todaysNutritionLog: NutritionLog | null
   recentNutritionLogs: NutritionLog[]
 }
 
 async function loadData(): Promise<AppData> {
-  const [template, testableExercises, todaysNutritionLog, recentNutritionLogs] = await Promise.all([
+  const [template, testableExercises, recentNutritionLogs] = await Promise.all([
     fetchTemplate(),
     fetchTestableExercises(),
-    fetchNutritionLog(todayIsoDate()),
     fetchRecentNutritionLogs(isoDateDaysAgo(6)),
   ])
   const program = await fetchLatestProgram()
   if (!program) {
-    return {
-      template,
-      testableExercises,
-      program: null,
-      weeklyTargets: [],
-      loggedSets: [],
-      todaysNutritionLog,
-      recentNutritionLogs,
-    }
+    return { template, testableExercises, program: null, weeklyTargets: [], loggedSets: [], recentNutritionLogs }
   }
   const [weeklyTargets, loggedSets] = await Promise.all([fetchWeeklyTargets(program.id), fetchLoggedSets(program.id)])
-  return { template, testableExercises, program, weeklyTargets, loggedSets, todaysNutritionLog, recentNutritionLogs }
+  return { template, testableExercises, program, weeklyTargets, loggedSets, recentNutritionLogs }
 }
 
 function findDayName(template: DayWithExercises[], setGroupId: string): string {
@@ -126,7 +115,7 @@ export default function App() {
           program={data.program}
           currentWeek={currentWeek}
           loggedSets={data.loggedSets}
-          todaysNutritionLog={data.todaysNutritionLog}
+          todaysNutritionLogs={data.recentNutritionLogs.filter((log) => log.log_date === todayIsoDate())}
           onOpenLiftTracker={(dayName) => {
             setLiftTrackerDay(dayName)
             setView('lift-tracker')
@@ -167,12 +156,7 @@ export default function App() {
         })()}
 
       {view === 'nutrition' && (
-        <Nutrition
-          today={data.todaysNutritionLog}
-          recent={data.recentNutritionLogs}
-          onSaved={refresh}
-          onBack={() => setView('home')}
-        />
+        <Nutrition recent={data.recentNutritionLogs} onSaved={refresh} onBack={() => setView('home')} />
       )}
 
       <BottomNav active={view} onNavigate={setView} />

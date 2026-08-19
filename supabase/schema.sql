@@ -141,17 +141,19 @@ create table calibrations (
   updated_at timestamptz not null default now()
 );
 
--- Daily calorie/protein tracking for the cut, on its own dedicated screen
--- (not folded into logged_sets/programs). One row per calendar date,
--- upserted -- there's only ever "today's numbers," not a history of
--- same-day re-entries. Bodyweight is tracked separately, elsewhere, by
--- design -- not in this app.
+-- Calorie/protein tracking for the cut, on its own dedicated screen (not
+-- folded into logged_sets/programs). Append-only, same shape as
+-- logged_sets -- multiple entries per day (breakfast, lunch, dinner, ...)
+-- that accumulate into that day's total, computed client-side by summing
+-- entries for a given log_date. Bodyweight is tracked separately,
+-- elsewhere, by design -- not in this app.
 create table nutrition_logs (
   id uuid primary key default gen_random_uuid(),
-  log_date date not null unique,
+  log_date date not null,
+  label text,
   calories numeric,
   protein numeric,
-  created_at timestamptz not null default now()
+  logged_at timestamptz not null default now()
 );
 
 -- Seed: exercises. Bench and Deadlift are tested exercises; Paused Bench

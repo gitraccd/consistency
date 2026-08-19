@@ -2,19 +2,18 @@ import type { LoggedSet, NutritionLog, Program } from '../lib/api'
 import type { WeekNumber } from '../lib/calc'
 import { scheduledDayName } from '../lib/schedule'
 
-function nutritionSummary(log: NutritionLog | null): string {
-  if (!log) return 'Log today’s nutrition'
-  const parts: string[] = []
-  if (log.calories != null) parts.push(`${log.calories} cal`)
-  if (log.protein != null) parts.push(`${log.protein}g protein`)
-  return parts.length > 0 ? parts.join(' · ') : 'Log today’s nutrition'
+function nutritionSummary(todaysEntries: NutritionLog[]): string {
+  if (todaysEntries.length === 0) return 'Log today’s nutrition'
+  const calories = todaysEntries.reduce((sum, log) => sum + (log.calories ?? 0), 0)
+  const protein = todaysEntries.reduce((sum, log) => sum + (log.protein ?? 0), 0)
+  return `${calories.toLocaleString()} cal · ${protein}g protein`
 }
 
 export function Home({
   program,
   currentWeek,
   loggedSets,
-  todaysNutritionLog,
+  todaysNutritionLogs,
   onOpenLiftTracker,
   onOpenNutrition,
   onNewProgram,
@@ -22,7 +21,7 @@ export function Home({
   program: Program | null
   currentWeek: WeekNumber
   loggedSets: LoggedSet[]
-  todaysNutritionLog: NutritionLog | null
+  todaysNutritionLogs: NutritionLog[]
   onOpenLiftTracker: (dayName: string) => void
   onOpenNutrition: () => void
   onNewProgram: () => void
@@ -64,7 +63,7 @@ export function Home({
 
         <button onClick={onOpenNutrition} className="rounded-xl bg-surface-2 p-4 text-left">
           <p className="font-medium">Calories</p>
-          <p className="text-sm text-text-muted">{nutritionSummary(todaysNutritionLog)}</p>
+          <p className="text-sm text-text-muted">{nutritionSummary(todaysNutritionLogs)}</p>
         </button>
       </div>
 

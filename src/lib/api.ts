@@ -269,34 +269,34 @@ export async function createProgram(startDate: string, plans: ExerciseTestPlan[]
   return program
 }
 
-export async function fetchNutritionLog(logDate: string): Promise<NutritionLog | null> {
-  const { data, error } = await supabase.from('nutrition_logs').select('*').eq('log_date', logDate).maybeSingle()
-  if (error) throw error
-  return data
-}
-
 /** All nutrition_logs rows from sinceDate (inclusive) onward, most recent first. */
 export async function fetchRecentNutritionLogs(sinceDate: string): Promise<NutritionLog[]> {
   const { data, error } = await supabase
     .from('nutrition_logs')
     .select('*')
     .gte('log_date', sinceDate)
-    .order('log_date', { ascending: false })
+    .order('logged_at', { ascending: false })
   if (error) throw error
   return data
 }
 
-/** Upserts today's calories/protein -- one row per date, not append-only. */
-export async function upsertNutritionLog(input: {
+/** Appends one meal/snack entry -- multiple per day accumulate into that day's total. */
+export async function insertNutritionLog(input: {
   logDate: string
+  label: string | null
   calories: number | null
   protein: number | null
 }): Promise<NutritionLog> {
   const { data, error } = await supabase
     .from('nutrition_logs')
-    .upsert({ log_date: input.logDate, calories: input.calories, protein: input.protein }, { onConflict: 'log_date' })
+    .insert({ log_date: input.logDate, label: input.label, calories: input.calories, protein: input.protein })
     .select()
     .single()
   if (error) throw error
   return data
+}
+
+export async function deleteNutritionLog(id: string): Promise<void> {
+  const { error } = await supabase.from('nutrition_logs').delete().eq('id', id)
+  if (error) throw error
 }

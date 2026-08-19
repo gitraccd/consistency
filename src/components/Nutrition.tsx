@@ -1,32 +1,64 @@
 import { useState } from 'react'
-import { upsertNutritionLog, type NutritionLog } from '../lib/api'
+import { deleteNutritionLog, insertNutritionLog, type NutritionLog } from '../lib/api'
 import { todayIsoDate } from '../lib/schedule'
 
+interface DayTotal {
+  logDate: string
+  calories: number
+  protein: number
+}
+
+function totalsByDay(logs: NutritionLog[]): DayTotal[] {
+  const byDate = new Map<string, DayTotal>()
+  for (const log of logs) {
+    const existing = byDate.get(log.log_date) ?? { logDate: log.log_date, calories: 0, protein: 0 }
+    existing.calories += log.calories ?? 0
+    existing.protein += log.protein ?? 0
+    byDate.set(log.log_date, existing)
+  }
+  return [...byDate.values()].sort((a, b) => (a.logDate < b.logDate ? 1 : -1))
+}
+
 export function Nutrition({
-  today,
   recent,
   onSaved,
   onBack,
 }: {
-  today: NutritionLog | null
   recent: NutritionLog[]
   onSaved: () => void
   onBack: () => void
 }) {
-  const [calories, setCalories] = useState(today?.calories != null ? String(today.calories) : '')
-  const [protein, setProtein] = useState(today?.protein != null ? String(today.protein) : '')
+  const [label, setLabel] = useState('')
+  const [calories, setCalories] = useState('')
+  const [protein, setProtein] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  async function handleSave() {
+  const today = todayIsoDate()
+  const todaysEntries = recent.filter((log) => log.log_date === today)
+  const todaysTotal = todaysEntries.reduce(
+    (acc, log) => ({ calories: acc.calories + (log.calories ?? 0), protein: acc.protein + (log.protein ?? 0) }),
+    { calories: 0, protein: 0 },
+  )
+  const history = totalsByDay(recent.filter((log) => log.log_date !== today))
+
+  const valid = calories !== '' || protein !== ''
+
+  async function handleAdd() {
+    if (!valid) return
     setSubmitting(true)
     setError(null)
     try {
-      await upsertNutritionLog({
-        logDate: todayIsoDate(),
+      await insertNutritionLog({
+        logDate: today,
+        label: label === '' ? null : label,
         calories: calories === '' ? null : Number(calories),
         protein: protein === '' ? null : Number(protein),
       })
+      setLabel('')
+      setCalories('')
+      setProtein('')
       onSaved()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -35,7 +67,18 @@ export function Nutrition({
     }
   }
 
-  const history = recent.filter((log) => log.log_date !== todayIsoDate())
+  async function handleDelete(id: string) {
+    setDeletingId(id)
+    setError(null)
+    try {
+      await deleteNutritionLog(id)
+      onSaved()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   return (
     <div className="mx-auto max-w-md space-y-4 p-4 pb-24">
@@ -46,13 +89,55 @@ export function Nutrition({
         </button>
       </div>
 
-      <div className="space-y-3 rounded-xl bg-surface p-4">
+      <div className="space-y-1 rounded-xl bg-surface p-4">
         <p className="text-sm text-text-muted">Today</p>
+        <p className="text-2xl font-semibold text-accent">
+          {todaysTotal.calories.toLocaleString()} cal · {todaysTotal.protein}g protein
+        </p>
+      </div>
+
+      {todaysEntries.length > 0 && (
+        <div className="rounded-xl bg-surface p-4">
+          <ul className="divide-y divide-border">
+            {todaysEntries.map((log) => (
+              <li key={log.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+                <span>
+                  {log.label ? <span className="font-medium">{log.label}: </span> : null}
+                  {log.calories != null ? `${log.calories} cal` : '—'}
+                  {log.protein != null ? ` · ${log.protein}g protein` : ''}
+                </span>
+                <button
+                  onClick={() => handleDelete(log.id)}
+                  disabled={deletingId === log.id}
+                  aria-label="Delete entry"
+                  className="px-1 text-text-muted hover:text-danger disabled:opacity-40"
+                >
+                  ✕
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="space-y-3 rounded-xl bg-surface p-4">
+        <p className="text-sm text-text-muted">Add a meal or snack</p>
+
+        <label className="block space-y-1">
+          <span className="text-sm text-text-muted">Label (optional)</span>
+          <input
+            type="text"
+            placeholder="Breakfast, lunch, snack…"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            className="w-full rounded-lg bg-surface-2 px-3 py-2 text-lg"
+          />
+        </label>
+
         <div className="flex gap-2">
           <label className="flex-1 space-y-1">
             <span className="text-sm text-text-muted">Calories</span>
             <input
-              autoFocus
               type="number"
               inputMode="numeric"
               value={calories}
@@ -75,11 +160,11 @@ export function Nutrition({
         {error && <p className="text-sm text-danger">{error}</p>}
 
         <button
-          onClick={handleSave}
-          disabled={submitting}
+          onClick={handleAdd}
+          disabled={!valid || submitting}
           className="w-full rounded-xl bg-accent py-3 font-medium text-accent-text disabled:opacity-40"
         >
-          {submitting ? 'Saving…' : 'Save'}
+          {submitting ? 'Adding…' : 'Add'}
         </button>
       </div>
 
@@ -87,12 +172,11 @@ export function Nutrition({
         <div className="space-y-1 rounded-xl bg-surface p-4">
           <p className="text-sm text-text-muted">Last 7 days</p>
           <div className="divide-y divide-border">
-            {history.map((log) => (
-              <div key={log.id} className="flex items-center justify-between py-2 text-sm">
-                <span className="text-text-muted">{log.log_date}</span>
+            {history.map((day) => (
+              <div key={day.logDate} className="flex items-center justify-between py-2 text-sm">
+                <span className="text-text-muted">{day.logDate}</span>
                 <span className="text-text">
-                  {log.calories != null ? `${log.calories} cal` : '—'}
-                  {log.protein != null ? ` · ${log.protein}g protein` : ''}
+                  {day.calories.toLocaleString()} cal · {day.protein}g protein
                 </span>
               </div>
             ))}
