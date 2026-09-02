@@ -74,7 +74,7 @@ export function LiftTracker({
                   </div>
                   <div className="text-right">
                     {plan ? (
-                      <div className="text-text">{plan.target_rpe ? `RPE ${plan.target_rpe}` : '—'}</div>
+                      <div className="text-text">{plan.target_rpe ?? '—'}</div>
                     ) : (
                       <div className={target ? 'text-text' : 'text-text-muted/50'}>
                         {currentWeek === 6 ? 'Deload' : (target ?? '—')}

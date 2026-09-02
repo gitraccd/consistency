@@ -237,7 +237,7 @@ insert into set_groups (day_exercise_id, reps, num_sets, is_freeform, intensity_
     3, 4, false, null, 0.75, '[10,10,5,10]'::jsonb, null, 2),
   ((select id from day_exercises where day_id = (select id from days where name = 'Heavy') and exercise_id = (select id from exercises where name = 'Weighted Pull-up')),
     1, 1, true, null, null, null,
-    '[{"week":1,"sets":1,"reps":1,"target_rpe":"7.5-8","note":"Top single"},{"week":2,"sets":1,"reps":1,"target_rpe":"~8","note":"Top single"},{"week":3,"sets":1,"reps":1,"target_rpe":"8-8.5","note":"Top single"},{"week":4,"sets":1,"reps":1,"target_rpe":"8.5-9","note":"Top single"},{"week":5,"sets":1,"reps":1,"target_rpe":"9-9.5","note":"Test: heavy single"}]'::jsonb,
+    '[{"week":1,"sets":1,"reps":1,"target_rpe":"RPE 7.5-8","note":"Top single"},{"week":2,"sets":1,"reps":1,"target_rpe":"RPE ~8","note":"Top single"},{"week":3,"sets":1,"reps":1,"target_rpe":"RPE 8-8.5","note":"Top single"},{"week":4,"sets":1,"reps":1,"target_rpe":"RPE 8.5-9","note":"Top single"},{"week":5,"sets":1,"reps":1,"target_rpe":"RPE 9-9.5","note":"Test: heavy single"}]'::jsonb,
     1),
   ((select id from day_exercises where day_id = (select id from days where name = 'Heavy') and exercise_id = (select id from exercises where name = 'Weighted Pull-up')),
     3, 2, true, null, null, null,
