@@ -17,6 +17,10 @@ export type WeeklyTarget = Database['public']['Tables']['weekly_targets']['Row']
 export type LoggedSet = Database['public']['Tables']['logged_sets']['Row']
 export type Calibration = Database['public']['Tables']['calibrations']['Row']
 export type NutritionLog = Database['public']['Tables']['nutrition_logs']['Row']
+export type NutritionGoal = Database['public']['Tables']['nutrition_goals']['Row']
+
+/** Fixed id for the single nutrition_goals row -- there's only ever one current goal, not a history. */
+const NUTRITION_GOAL_ID = '00000000-0000-0000-0000-000000000001'
 
 export interface DayExerciseWithDetails {
   id: string
@@ -299,4 +303,23 @@ export async function insertNutritionLog(input: {
 export async function deleteNutritionLog(id: string): Promise<void> {
   const { error } = await supabase.from('nutrition_logs').delete().eq('id', id)
   if (error) throw error
+}
+
+export async function fetchNutritionGoal(): Promise<NutritionGoal | null> {
+  const { data, error } = await supabase.from('nutrition_goals').select('*').eq('id', NUTRITION_GOAL_ID).maybeSingle()
+  if (error) throw error
+  return data
+}
+
+export async function upsertNutritionGoal(input: {
+  calories: number | null
+  protein: number | null
+}): Promise<NutritionGoal> {
+  const { data, error } = await supabase
+    .from('nutrition_goals')
+    .upsert({ id: NUTRITION_GOAL_ID, calories: input.calories, protein: input.protein, updated_at: new Date().toISOString() })
+    .select()
+    .single()
+  if (error) throw error
+  return data
 }

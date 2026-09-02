@@ -30,6 +30,7 @@ drop table if exists test_lifts cascade;
 drop table if exists lifts cascade;
 drop table if exists programs cascade;
 drop table if exists nutrition_logs cascade;
+drop table if exists nutrition_goals cascade;
 
 create extension if not exists pgcrypto;
 
@@ -154,6 +155,16 @@ create table nutrition_logs (
   calories numeric,
   protein numeric,
   logged_at timestamptz not null default now()
+);
+
+-- Daily calorie/protein target. Always a single row, upserted at a fixed
+-- id from the app (see NUTRITION_GOAL_ID in api.ts) -- there's only ever
+-- one current goal, not a history of past goals.
+create table nutrition_goals (
+  id uuid primary key,
+  calories numeric,
+  protein numeric,
+  updated_at timestamptz not null default now()
 );
 
 -- Seed: exercises. Bench and Deadlift are tested exercises; Paused Bench
@@ -283,6 +294,7 @@ alter table weekly_targets enable row level security;
 alter table logged_sets enable row level security;
 alter table calibrations enable row level security;
 alter table nutrition_logs enable row level security;
+alter table nutrition_goals enable row level security;
 
 create policy "public all programs" on programs for all using (true) with check (true);
 create policy "public all exercises" on exercises for all using (true) with check (true);
@@ -294,3 +306,4 @@ create policy "public all weekly_targets" on weekly_targets for all using (true)
 create policy "public all logged_sets" on logged_sets for all using (true) with check (true);
 create policy "public all calibrations" on calibrations for all using (true) with check (true);
 create policy "public all nutrition_logs" on nutrition_logs for all using (true) with check (true);
+create policy "public all nutrition_goals" on nutrition_goals for all using (true) with check (true);

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { DayWithExercises, Exercise, LoggedSet, NutritionLog, Program, SetGroup, WeeklyTarget } from './lib/api'
+import type { DayWithExercises, Exercise, LoggedSet, NutritionGoal, NutritionLog, Program, SetGroup, WeeklyTarget } from './lib/api'
 import {
   fetchTemplate,
   fetchTestableExercises,
@@ -7,6 +7,7 @@ import {
   fetchWeeklyTargets,
   fetchLoggedSets,
   fetchRecentNutritionLogs,
+  fetchNutritionGoal,
 } from './lib/api'
 import { currentWeekNumber } from './lib/weeks'
 import type { WeekNumber } from './lib/calc'
@@ -26,20 +27,30 @@ interface AppData {
   weeklyTargets: WeeklyTarget[]
   loggedSets: LoggedSet[]
   recentNutritionLogs: NutritionLog[]
+  nutritionGoal: NutritionGoal | null
 }
 
 async function loadData(): Promise<AppData> {
-  const [template, testableExercises, recentNutritionLogs] = await Promise.all([
+  const [template, testableExercises, recentNutritionLogs, nutritionGoal] = await Promise.all([
     fetchTemplate(),
     fetchTestableExercises(),
     fetchRecentNutritionLogs(isoDateDaysAgo(6)),
+    fetchNutritionGoal(),
   ])
   const program = await fetchLatestProgram()
   if (!program) {
-    return { template, testableExercises, program: null, weeklyTargets: [], loggedSets: [], recentNutritionLogs }
+    return {
+      template,
+      testableExercises,
+      program: null,
+      weeklyTargets: [],
+      loggedSets: [],
+      recentNutritionLogs,
+      nutritionGoal,
+    }
   }
   const [weeklyTargets, loggedSets] = await Promise.all([fetchWeeklyTargets(program.id), fetchLoggedSets(program.id)])
-  return { template, testableExercises, program, weeklyTargets, loggedSets, recentNutritionLogs }
+  return { template, testableExercises, program, weeklyTargets, loggedSets, recentNutritionLogs, nutritionGoal }
 }
 
 function findDayName(template: DayWithExercises[], setGroupId: string): string {
@@ -156,7 +167,12 @@ export default function App() {
         })()}
 
       {view === 'nutrition' && (
-        <Nutrition recent={data.recentNutritionLogs} onSaved={refresh} onBack={() => setView('home')} />
+        <Nutrition
+          recent={data.recentNutritionLogs}
+          goal={data.nutritionGoal}
+          onSaved={refresh}
+          onBack={() => setView('home')}
+        />
       )}
 
       <BottomNav active={view} onNavigate={setView} />
