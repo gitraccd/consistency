@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { deleteNutritionLog, insertNutritionLog, type NutritionLog } from '../lib/api'
+import { useState, type ReactNode } from 'react'
+import { Drumstick, Flame } from 'lucide-react'
+import { deleteNutritionLog, insertNutritionLog, upsertNutritionGoal, type NutritionGoal, type NutritionLog } from '../lib/api'
 import { todayIsoDate } from '../lib/schedule'
 
 interface DayTotal {
@@ -19,12 +20,75 @@ function totalsByDay(logs: NutritionLog[]): DayTotal[] {
   return [...byDate.values()].sort((a, b) => (a.logDate < b.logDate ? 1 : -1))
 }
 
+/** Calories is a ceiling (cut goal: at or under); protein is a floor (adequacy goal: at or over). */
+function dayHitGoal(day: DayTotal, goal: NutritionGoal): { calories: boolean; protein: boolean } {
+  return {
+    calories: goal.calories == null || day.calories <= goal.calories,
+    protein: goal.protein == null || day.protein >= goal.protein,
+  }
+}
+
+function RingStat({
+  value,
+  goal,
+  unit,
+  label,
+  color,
+  icon,
+}: {
+  value: number
+  goal: number | null
+  unit: string
+  label: string
+  color: string
+  icon: ReactNode
+}) {
+  const size = 64
+  const stroke = 6
+  const r = (size - stroke) / 2
+  const c = 2 * Math.PI * r
+  const pct = goal != null && goal > 0 ? Math.min(value / goal, 1) : 0
+
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-2xl bg-surface p-5">
+      <div>
+        <p className="text-3xl font-bold tabular-nums">
+          {value.toLocaleString()}
+          {goal != null && <span className="text-lg font-normal text-text-muted">/{goal.toLocaleString()}{unit}</span>}
+        </p>
+        <p className="text-sm text-text-muted">{label}</p>
+      </div>
+      <div className="relative shrink-0" style={{ width: size, height: size }}>
+        <svg viewBox={`0 0 ${size} ${size}`} className="-rotate-90" style={{ width: size, height: size }}>
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-surface-2)" strokeWidth={stroke} />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke={color}
+            strokeWidth={stroke}
+            strokeLinecap="round"
+            strokeDasharray={c}
+            strokeDashoffset={c * (1 - pct)}
+          />
+        </svg>
+        <span className="absolute inset-0 flex items-center justify-center" style={{ color }}>
+          {icon}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export function Nutrition({
   recent,
+  goal,
   onSaved,
   onBack,
 }: {
   recent: NutritionLog[]
+  goal: NutritionGoal | null
   onSaved: () => void
   onBack: () => void
 }) {
@@ -35,6 +99,11 @@ export function Nutrition({
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  const [editingGoal, setEditingGoal] = useState(false)
+  const [goalCalories, setGoalCalories] = useState(goal?.calories != null ? String(goal.calories) : '')
+  const [goalProtein, setGoalProtein] = useState(goal?.protein != null ? String(goal.protein) : '')
+  const [savingGoal, setSavingGoal] = useState(false)
+
   const today = todayIsoDate()
   const todaysEntries = recent.filter((log) => log.log_date === today)
   const todaysTotal = todaysEntries.reduce(
@@ -44,6 +113,23 @@ export function Nutrition({
   const history = totalsByDay(recent.filter((log) => log.log_date !== today))
 
   const valid = calories !== '' || protein !== ''
+
+  async function handleSaveGoal() {
+    setSavingGoal(true)
+    setError(null)
+    try {
+      await upsertNutritionGoal({
+        calories: goalCalories === '' ? null : Number(goalCalories),
+        protein: goalProtein === '' ? null : Number(goalProtein),
+      })
+      setEditingGoal(false)
+      onSaved()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSavingGoal(false)
+    }
+  }
 
   async function handleAdd() {
     if (!valid) return
@@ -89,12 +175,65 @@ export function Nutrition({
         </button>
       </div>
 
-      <div className="space-y-1 rounded-xl bg-surface p-4">
+      <div className="flex items-center justify-between px-1">
         <p className="text-sm text-text-muted">Today</p>
-        <p className="text-2xl font-semibold text-accent">
-          {todaysTotal.calories.toLocaleString()} cal · {todaysTotal.protein}g protein
-        </p>
+        <button onClick={() => setEditingGoal((v) => !v)} className="text-sm text-text-muted underline">
+          {goal ? 'Edit goal' : 'Set goal'}
+        </button>
       </div>
+
+      <div className="space-y-3">
+        <RingStat
+          value={todaysTotal.calories}
+          goal={goal?.calories ?? null}
+          unit=""
+          label="Calories eaten"
+          color="var(--color-calories)"
+          icon={<Flame className="h-6 w-6" fill="currentColor" />}
+        />
+        <RingStat
+          value={todaysTotal.protein}
+          goal={goal?.protein ?? null}
+          unit="g"
+          label="Protein eaten"
+          color="var(--color-protein)"
+          icon={<Drumstick className="h-6 w-6" />}
+        />
+      </div>
+
+      {editingGoal && (
+        <div className="space-y-3 rounded-xl bg-surface p-4">
+          <div className="flex gap-2">
+            <label className="flex-1 space-y-1">
+              <span className="text-sm text-text-muted">Calorie target</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                value={goalCalories}
+                onChange={(e) => setGoalCalories(e.target.value)}
+                className="w-full rounded-lg bg-surface-2 px-3 py-2 text-lg"
+              />
+            </label>
+            <label className="flex-1 space-y-1">
+              <span className="text-sm text-text-muted">Protein target (g)</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                value={goalProtein}
+                onChange={(e) => setGoalProtein(e.target.value)}
+                className="w-full rounded-lg bg-surface-2 px-3 py-2 text-lg"
+              />
+            </label>
+          </div>
+          <button
+            onClick={handleSaveGoal}
+            disabled={savingGoal}
+            className="w-full rounded-xl bg-accent py-3 font-medium text-accent-text disabled:opacity-40"
+          >
+            {savingGoal ? 'Saving…' : 'Save goal'}
+          </button>
+        </div>
+      )}
 
       {todaysEntries.length > 0 && (
         <div className="rounded-xl bg-surface p-4">
@@ -172,14 +311,19 @@ export function Nutrition({
         <div className="space-y-1 rounded-xl bg-surface p-4">
           <p className="text-sm text-text-muted">Last 7 days</p>
           <div className="divide-y divide-border">
-            {history.map((day) => (
-              <div key={day.logDate} className="flex items-center justify-between py-2 text-sm">
-                <span className="text-text-muted">{day.logDate}</span>
-                <span className="text-text">
-                  {day.calories.toLocaleString()} cal · {day.protein}g protein
-                </span>
-              </div>
-            ))}
+            {history.map((day) => {
+              const hit = goal ? dayHitGoal(day, goal) : null
+              return (
+                <div key={day.logDate} className="flex items-center justify-between py-2 text-sm">
+                  <span className="text-text-muted">{day.logDate}</span>
+                  <span className="text-text">
+                    {day.calories.toLocaleString()} cal{hit ? (hit.calories ? ' ✓' : ' ✗') : ''} · {day.protein}g
+                    protein
+                    {hit ? (hit.protein ? ' ✓' : ' ✗') : ''}
+                  </span>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

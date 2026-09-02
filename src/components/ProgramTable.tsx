@@ -25,10 +25,15 @@ export function ProgramTable({
   loggedSets: LoggedSet[]
   onCellClick: (setGroup: SetGroup, week: WeekNumber) => void
 }) {
+  const startDate = new Date(program.start_date + 'T00:00:00')
+  const weekday = startDate.toLocaleDateString(undefined, { weekday: 'long' }).toUpperCase()
+  const month = startDate.toLocaleDateString(undefined, { month: 'short' }).toUpperCase()
+  const formattedStart = `${weekday} ${startDate.getDate()} ${month}`
+
   return (
     <div className="space-y-8 p-4 pb-24">
       <div>
-        <h1 className="text-xl font-semibold">Block started {program.start_date}</h1>
+        <h1 className="text-sm font-medium text-text">Block started {formattedStart}</h1>
         <p className="text-sm text-text-muted">
           Week {currentWeek} of 6{currentWeek === 6 ? ' (Deload)' : ''}
         </p>
@@ -47,7 +52,7 @@ export function ProgramTable({
                   {WEEKS.map((w) => (
                     <th
                       key={w}
-                      className={`p-2 text-center font-medium ${w === currentWeek ? 'text-accent' : 'text-text-muted'}`}
+                      className={`p-2 text-center font-medium ${w === currentWeek ? 'font-semibold text-text' : 'text-text-muted'}`}
                     >
                       W{w}
                     </th>
@@ -86,7 +91,7 @@ export function ProgramTable({
                             {plan ? (
                               <div className="text-text">
                                 {plan.sets}x{plan.reps}
-                                {plan.target_rpe ? ` @ RPE ${plan.target_rpe}` : ''}
+                                {plan.target_rpe ? ` @ ${plan.target_rpe}` : ''}
                               </div>
                             ) : (
                               <div className={target ? 'text-text' : 'text-text-muted/50'}>

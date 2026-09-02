@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@fontsource-variable/inter";
 
 @theme {
   --color-bg: #121212;
@@ -7,10 +8,13 @@
   --color-border: #38383a;
   --color-text: #f5f5f7;
   --color-text-muted: #98989d;
-  --color-accent: #ff6b35;
-  --color-accent-text: #1a0f0a;
+  --color-accent: #f5f5f7;
+  --color-accent-text: #121212;
   --color-success: #32d74b;
   --color-danger: #ff453a;
+  --color-calories: #ff9f0a;
+  --color-protein: #ff453a;
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
 }
 
 html {
@@ -18,5 +22,5 @@ html {
 }
 
 body {
-  @apply bg-bg text-text;
+  @apply bg-bg text-text font-sans;
 }
