@@ -12,7 +12,7 @@ export function BottomNav({ active, onNavigate }: { active: NavView; onNavigate:
         <button
           key={item.view}
           onClick={() => onNavigate(item.view)}
-          className={`flex-1 py-3 text-sm font-medium ${active === item.view ? 'text-accent' : 'text-text-muted'}`}
+          className={`flex-1 py-3 text-sm font-medium ${active === item.view ? 'font-semibold text-text' : 'text-text-muted'}`}
         >
           {item.label}
         </button>
