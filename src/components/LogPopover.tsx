@@ -135,7 +135,7 @@ export function LogPopover({
           <button
             onClick={handleAdd}
             disabled={!valid || submitting}
-            className="rounded-lg bg-accent px-4 py-2 font-medium text-accent-text disabled:opacity-40"
+            className="rounded-lg bg-accent px-4 py-2 font-medium text-accent-text transition-transform active:scale-[0.98] disabled:opacity-40"
           >
             Add
           </button>

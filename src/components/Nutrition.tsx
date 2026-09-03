@@ -49,6 +49,12 @@ function RingStat({
   const c = 2 * Math.PI * r
   const pct = goal != null && goal > 0 ? Math.min(value / goal, 1) : 0
 
+  const [animatedPct, setAnimatedPct] = useState(0)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setAnimatedPct(pct))
+    return () => cancelAnimationFrame(id)
+  }, [pct])
+
   return (
     <div className="flex items-center justify-between gap-4 rounded-2xl bg-surface p-5">
       <div>
@@ -70,7 +76,8 @@ function RingStat({
             strokeWidth={stroke}
             strokeLinecap="round"
             strokeDasharray={c}
-            strokeDashoffset={c * (1 - pct)}
+            strokeDashoffset={c * (1 - animatedPct)}
+            className="transition-[stroke-dashoffset] duration-700 ease-out"
           />
         </svg>
         <span className="absolute inset-0 flex items-center justify-center" style={{ color }}>
@@ -174,7 +181,7 @@ export function Nutrition({
   }
 
   return (
-    <div className="mx-auto max-w-md space-y-4 p-4 pb-24">
+    <div className="page-enter mx-auto max-w-md space-y-4 p-4 pb-24">
       <div className="flex items-start justify-between">
         <h1 className="text-xl font-semibold">Nutrition</h1>
         <button onClick={onBack} className="text-text-muted">
@@ -235,7 +242,7 @@ export function Nutrition({
           <button
             onClick={handleSaveGoal}
             disabled={savingGoal}
-            className="w-full rounded-xl bg-accent py-3 font-medium text-accent-text disabled:opacity-40"
+            className="w-full rounded-xl bg-accent py-3 font-medium text-accent-text transition-transform active:scale-[0.98] disabled:opacity-40"
           >
             {savingGoal ? 'Saving…' : 'Save goal'}
           </button>
@@ -309,7 +316,7 @@ export function Nutrition({
         <button
           onClick={handleAdd}
           disabled={!valid || submitting}
-          className="w-full rounded-xl bg-accent py-3 font-medium text-accent-text disabled:opacity-40"
+          className="w-full rounded-xl bg-accent py-3 font-medium text-accent-text transition-transform active:scale-[0.98] disabled:opacity-40"
         >
           {submitting ? 'Adding…' : 'Add'}
         </button>

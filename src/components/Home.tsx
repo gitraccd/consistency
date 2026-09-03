@@ -1,4 +1,4 @@
-import { Fragment } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { ChevronRight, Plus } from 'lucide-react'
 import type { LoggedSet, NutritionLog, Program } from '../lib/api'
 import type { WeekNumber } from '../lib/calc'
@@ -72,6 +72,14 @@ function ConsistencyGrid({ weeks }: { weeks: ConsistencyDay[][] }) {
 function WeekRing({ week }: { week: WeekNumber }) {
   const r = 18
   const c = 2 * Math.PI * r
+  const pct = week / 6
+
+  const [animatedPct, setAnimatedPct] = useState(0)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setAnimatedPct(pct))
+    return () => cancelAnimationFrame(id)
+  }, [pct])
+
   return (
     <div className="relative h-11 w-11 shrink-0">
       <svg viewBox="0 0 44 44" className="h-11 w-11 -rotate-90">
@@ -85,7 +93,8 @@ function WeekRing({ week }: { week: WeekNumber }) {
           strokeWidth="3"
           strokeLinecap="round"
           strokeDasharray={c}
-          strokeDashoffset={c * (1 - week / 6)}
+          strokeDashoffset={c * (1 - animatedPct)}
+          className="transition-[stroke-dashoffset] duration-700 ease-out"
         />
       </svg>
       <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold">{week}</span>
@@ -118,13 +127,13 @@ export function Home({
   const todaysProtein = todaysNutritionLogs.reduce((sum, log) => sum + (log.protein ?? 0), 0)
 
   return (
-    <div className="mx-auto max-w-md p-5 pb-24">
+    <div className="page-enter mx-auto max-w-md p-5 pb-24">
       <header className="mb-6 flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Home</h1>
         {program && (
           <button
             onClick={onNewProgram}
-            className="flex items-center gap-1.5 rounded-full bg-surface-2 py-2 pl-3 pr-3.5 text-sm font-medium text-text"
+            className="flex items-center gap-1.5 rounded-full bg-surface-2 py-2 pl-3 pr-3.5 text-sm font-medium text-text transition-transform active:scale-95"
           >
             <Plus className="h-4 w-4" strokeWidth={2.5} />
             New block
@@ -138,7 +147,7 @@ export function Home({
             <button
               onClick={() => canLogToday && onOpenLiftTracker(todaysDay!)}
               disabled={!canLogToday}
-              className="flex min-h-[148px] flex-col justify-between rounded-2xl border border-border bg-surface p-4 text-left disabled:opacity-40"
+              className="flex min-h-[148px] flex-col justify-between rounded-2xl border border-border bg-surface p-4 text-left transition-transform active:scale-[0.98] disabled:opacity-40"
             >
               <WeekRing week={currentWeek} />
               <div className="flex items-end justify-between gap-2">
@@ -165,7 +174,7 @@ export function Home({
               <button
                 onClick={() => onOpenNutrition(true)}
                 aria-label="Log a meal or snack"
-                className="mt-1 flex items-center justify-center gap-1.5 rounded-full bg-accent py-1.5 text-sm font-semibold text-accent-text"
+                className="mt-1 flex items-center justify-center gap-1.5 rounded-full bg-accent py-1.5 text-sm font-semibold text-accent-text transition-transform active:scale-95"
               >
                 <Plus className="h-4 w-4" strokeWidth={2.5} />
                 Log meal
@@ -173,7 +182,7 @@ export function Home({
             </div>
           </div>
 
-          <div className="mb-3 rounded-2xl bg-surface p-4">
+          <div className="mb-4 border-y border-border py-4">
             <p className="mb-3 text-xs font-medium uppercase tracking-wide text-text-muted">Consistency</p>
             <ConsistencyGrid weeks={buildConsistencyWeeks(program.start_date, loggedSets)} />
           </div>
@@ -191,7 +200,10 @@ export function Home({
       ) : (
         <>
           <p className="mb-6 text-text-muted">No active block yet</p>
-          <button onClick={onNewProgram} className="w-full rounded-xl bg-accent py-3.5 font-medium text-accent-text">
+          <button
+            onClick={onNewProgram}
+            className="w-full rounded-xl bg-accent py-3.5 font-medium text-accent-text transition-transform active:scale-[0.98]"
+          >
             Create Block
           </button>
         </>

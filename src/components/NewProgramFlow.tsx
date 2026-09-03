@@ -110,7 +110,7 @@ export function NewProgramFlow({
   }
 
   return (
-    <div className="mx-auto max-w-md space-y-6 p-4 pb-24">
+    <div className="page-enter mx-auto max-w-md space-y-6 p-4 pb-24">
       <h1 className="text-xl font-semibold">New 6-week block</h1>
 
       <label className="block space-y-1">
@@ -235,7 +235,7 @@ export function NewProgramFlow({
       <button
         onClick={handleSubmit}
         disabled={!allValid || submitting}
-        className="w-full rounded-xl bg-accent py-3 font-medium text-accent-text disabled:opacity-40"
+        className="w-full rounded-xl bg-accent py-3 font-medium text-accent-text transition-transform active:scale-[0.98] disabled:opacity-40"
       >
         {submitting ? 'Creating…' : 'Generate block'}
       </button>

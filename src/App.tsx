@@ -117,7 +117,13 @@ export default function App() {
   }
 
   if (!data) {
-    return <div className="flex min-h-screen items-center justify-center text-text-muted">Loading…</div>
+    return (
+      <div className="flex min-h-screen items-center justify-center gap-1.5">
+        <span className="pulse-dot h-2 w-2 rounded-full bg-text-muted" style={{ animationDelay: '0ms' }} />
+        <span className="pulse-dot h-2 w-2 rounded-full bg-text-muted" style={{ animationDelay: '150ms' }} />
+        <span className="pulse-dot h-2 w-2 rounded-full bg-text-muted" style={{ animationDelay: '300ms' }} />
+      </div>
+    )
   }
 
   if (showNewProgram) {

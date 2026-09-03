@@ -40,7 +40,7 @@ export function LiftTracker({
   }
 
   return (
-    <div className="mx-auto max-w-md space-y-4 p-4 pb-24">
+    <div className="page-enter mx-auto max-w-md space-y-4 p-4 pb-24">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-xl font-semibold">{day.name}</h1>
@@ -102,7 +102,7 @@ export function LiftTracker({
                       onClick={() => handleQuickLog(sg, Number(target), sg.reps)}
                       disabled={loggingId === sg.id}
                       aria-label={`Log ${target} for ${sg.reps} reps as planned`}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-success disabled:opacity-40"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-success transition-transform active:scale-90 disabled:opacity-40"
                     >
                       <Check className="h-4 w-4" strokeWidth={3} />
                     </button>

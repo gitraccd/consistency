@@ -37,7 +37,7 @@ export function ProgramTable({
   const day = template.find((d) => d.name === selectedDayName) ?? template[0]
 
   return (
-    <div className="mx-auto max-w-md space-y-6 p-4 pb-24">
+    <div className="page-enter mx-auto max-w-md space-y-6 p-4 pb-24">
       <div>
         <h1 className="text-sm font-medium text-text">Block started {formattedStart}</h1>
         <p className="text-sm text-text-muted">
@@ -50,7 +50,7 @@ export function ProgramTable({
           <button
             key={d.id}
             onClick={() => setSelectedDayName(d.name)}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium ${
+            className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-transform active:scale-95 ${
               d.name === day?.name ? 'bg-text text-bg' : 'bg-surface-2 text-text-muted'
             }`}
           >
