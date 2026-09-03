@@ -61,7 +61,7 @@ export function ProgramTable({
       </div>
 
       {day && (
-        <div className="space-y-2">
+        <div key={day.id} className="page-enter space-y-2">
           <div className="overflow-x-auto rounded-xl bg-surface">
             <table className="w-full min-w-[560px] border-collapse text-sm">
               <thead>
@@ -104,7 +104,7 @@ export function ProgramTable({
                           <td
                             key={week}
                             onClick={() => onCellClick(sg, week)}
-                            className={`cursor-pointer p-2 text-center hover:bg-surface-2 ${
+                            className={`cursor-pointer p-2 text-center transition-colors hover:bg-surface-2 active:bg-surface-2/80 ${
                               week === currentWeek ? 'bg-surface-2/60' : ''
                             }`}
                           >
