@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import type { DayWithExercises, LoggedSet, Program, SetGroup, WeeklyTarget } from '../lib/api'
 import { weeklyPlanEntryFor, type WeekNumber } from '../lib/calc'
+import { scheduledDayName } from '../lib/schedule'
 
 const WEEKS: WeekNumber[] = [1, 2, 3, 4, 5, 6]
 
@@ -30,8 +32,12 @@ export function ProgramTable({
   const month = startDate.toLocaleDateString(undefined, { month: 'short' }).toUpperCase()
   const formattedStart = `${weekday} ${startDate.getDate()} ${month}`
 
+  const todaysDay = scheduledDayName()
+  const [selectedDayName, setSelectedDayName] = useState(todaysDay ?? template[0]?.name)
+  const day = template.find((d) => d.name === selectedDayName) ?? template[0]
+
   return (
-    <div className="space-y-8 p-4 pb-24">
+    <div className="mx-auto max-w-md space-y-6 p-4 pb-24">
       <div>
         <h1 className="text-sm font-medium text-text">Block started {formattedStart}</h1>
         <p className="text-sm text-text-muted">
@@ -39,9 +45,23 @@ export function ProgramTable({
         </p>
       </div>
 
-      {template.map((day) => (
-        <div key={day.id} className="space-y-2">
-          <h2 className="text-lg font-semibold text-text">{day.name}</h2>
+      <div className="flex gap-2 overflow-x-auto">
+        {template.map((d) => (
+          <button
+            key={d.id}
+            onClick={() => setSelectedDayName(d.name)}
+            className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium ${
+              d.name === day?.name ? 'bg-text text-bg' : 'bg-surface-2 text-text-muted'
+            }`}
+          >
+            {d.name}
+            {d.name === todaysDay ? ' · Today' : ''}
+          </button>
+        ))}
+      </div>
+
+      {day && (
+        <div className="space-y-2">
           <div className="overflow-x-auto rounded-xl bg-surface">
             <table className="w-full min-w-[560px] border-collapse text-sm">
               <thead>
@@ -113,7 +133,7 @@ export function ProgramTable({
             </table>
           </div>
         </div>
-      ))}
+      )}
     </div>
   )
 }
