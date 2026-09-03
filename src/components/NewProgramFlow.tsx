@@ -3,6 +3,7 @@ import type { DayWithExercises, Exercise, ExerciseTestPlan } from '../lib/api'
 import { createProgram } from '../lib/api'
 import { resolveExerciseE1RM, computeWeeklyTargets, type TargetWeek } from '../lib/calc'
 import type { ExerciseTestMode } from '../lib/database.types'
+import { todayIsoDate } from '../lib/schedule'
 
 interface TestFormState {
   mode: ExerciseTestMode
@@ -14,10 +15,6 @@ interface TestFormState {
 
 function initialFormState(): TestFormState {
   return { mode: 'raw_epley', weight: '', reps: '', rpe: '', manualE1rm: '' }
-}
-
-function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10)
 }
 
 interface PreviewRow {
