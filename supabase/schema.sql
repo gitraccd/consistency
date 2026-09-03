@@ -249,12 +249,14 @@ insert into set_groups (day_exercise_id, reps, num_sets, is_freeform, intensity_
     8, 2, true, null, null, null, null, 1),
   -- Deadlift: its own dedicated day (Friday), 1x/week, given its much
   -- higher systemic/spinal fatigue cost vs. Bench's 3x/week spread. Trusted
-  -- test 375x1 @ RPE9 -> E1RM ~400 (rpeBased1RM). Percentages mirror Bench's
-  -- build shape but cap at 92.5% E1RM rather than Bench's ~98%, since this
-  -- is deadlift's only weekly exposure with no other lower-body work to
-  -- spread peak-week fatigue across.
+  -- test 375x1 @ RPE9 -> E1RM ~400 (rpeBased1RM). Cap raised to ~97.5% E1RM
+  -- (was 92.5%) -- a 1RM estimated from a 1-rep RPE9 single already runs
+  -- ~6.7% above the actual weight lifted (Epley's RIR extrapolation), so a
+  -- 92.5% cap let week 5 land *below* the weight already pulled on test
+  -- day -- the opposite of progressive overload. 97.5% mirrors Bench's own
+  -- margin and reliably peaks past the tested single instead.
   ((select id from day_exercises where day_id = (select id from days where name = 'Deadlift') and exercise_id = (select id from exercises where name = 'Deadlift')),
-    1, 1, false, null, 0.80, '[10,10,10,20]'::jsonb, null, 1),
+    1, 1, false, null, 0.80, '[15,15,15,25]'::jsonb, null, 1),
   ((select id from day_exercises where day_id = (select id from days where name = 'Deadlift') and exercise_id = (select id from exercises where name = 'Deadlift')),
     3, 3, false, null, 0.72, '[5,5,5,5]'::jsonb, null, 2),
   -- Volume
