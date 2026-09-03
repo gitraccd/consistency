@@ -1,5 +1,5 @@
 import { Fragment } from 'react'
-import { Plus } from 'lucide-react'
+import { ChevronRight, Plus } from 'lucide-react'
 import type { LoggedSet, NutritionLog, Program } from '../lib/api'
 import type { WeekNumber } from '../lib/calc'
 import { scheduledDayName, todayIsoDate } from '../lib/schedule'
@@ -107,7 +107,7 @@ export function Home({
   loggedSets: LoggedSet[]
   todaysNutritionLogs: NutritionLog[]
   onOpenLiftTracker: (dayName: string) => void
-  onOpenNutrition: () => void
+  onOpenNutrition: (focusAdd?: boolean) => void
   onNewProgram: () => void
 }) {
   const weekLogs = program ? loggedSets.filter((s) => s.week_number === currentWeek) : []
@@ -124,10 +124,10 @@ export function Home({
         {program && (
           <button
             onClick={onNewProgram}
-            aria-label="Start new block"
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-2 text-text"
+            className="flex items-center gap-1.5 rounded-full bg-surface-2 py-2 pl-3 pr-3.5 text-sm font-medium text-text"
           >
-            <Plus className="h-5 w-5" strokeWidth={2.5} />
+            <Plus className="h-4 w-4" strokeWidth={2.5} />
+            New block
           </button>
         )}
       </header>
@@ -138,28 +138,39 @@ export function Home({
             <button
               onClick={() => canLogToday && onOpenLiftTracker(todaysDay!)}
               disabled={!canLogToday}
-              className="flex min-h-[148px] flex-col justify-between rounded-2xl bg-surface p-4 text-left disabled:opacity-40"
+              className="flex min-h-[148px] flex-col justify-between rounded-2xl border border-border bg-surface p-4 text-left disabled:opacity-40"
             >
               <WeekRing week={currentWeek} />
-              <div>
-                <p className="font-semibold">{todaysDay ?? 'Rest day'}</p>
-                <p className="text-sm text-text-muted">Week {currentWeek} of 6</p>
+              <div className="flex items-end justify-between gap-2">
+                <div>
+                  <p className="font-semibold">{todaysDay ?? 'Rest day'}</p>
+                  <p className="text-sm text-text-muted">Week {currentWeek} of 6</p>
+                </div>
+                {canLogToday && <ChevronRight className="h-4 w-4 shrink-0 text-text-muted" />}
               </div>
             </button>
 
-            <button
-              onClick={onOpenNutrition}
-              className="flex min-h-[148px] flex-col justify-between rounded-2xl bg-surface p-4 text-left"
-            >
-              <p className="text-3xl font-bold tabular-nums">
-                {todaysCalories.toLocaleString()}
-                <span className="text-base font-normal text-text-muted"> cal</span>
-              </p>
-              <div>
+            <div className="flex min-h-[148px] flex-col justify-between rounded-2xl border border-border bg-surface p-4">
+              <button onClick={() => onOpenNutrition()} className="flex items-start justify-between gap-2 text-left">
+                <p className="text-3xl font-bold tabular-nums">
+                  {todaysCalories.toLocaleString()}
+                  <span className="text-base font-normal text-text-muted"> cal</span>
+                </p>
+                <ChevronRight className="mt-1.5 h-4 w-4 shrink-0 text-text-muted" />
+              </button>
+              <button onClick={() => onOpenNutrition()} className="text-left">
                 <p className="font-semibold">Nutrition</p>
                 <p className="text-sm text-text-muted">{todaysProtein}g protein today</p>
-              </div>
-            </button>
+              </button>
+              <button
+                onClick={() => onOpenNutrition(true)}
+                aria-label="Log a meal or snack"
+                className="mt-1 flex items-center justify-center gap-1.5 rounded-full bg-accent py-1.5 text-sm font-semibold text-accent-text"
+              >
+                <Plus className="h-4 w-4" strokeWidth={2.5} />
+                Log meal
+              </button>
+            </div>
           </div>
 
           <div className="mb-3 rounded-2xl bg-surface p-4">

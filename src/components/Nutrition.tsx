@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Drumstick, Flame } from 'lucide-react'
 import { deleteNutritionLog, insertNutritionLog, upsertNutritionGoal, type NutritionGoal, type NutritionLog } from '../lib/api'
 import { todayIsoDate } from '../lib/schedule'
@@ -84,11 +84,13 @@ function RingStat({
 export function Nutrition({
   recent,
   goal,
+  autoFocusAdd,
   onSaved,
   onBack,
 }: {
   recent: NutritionLog[]
   goal: NutritionGoal | null
+  autoFocusAdd?: boolean
   onSaved: () => void
   onBack: () => void
 }) {
@@ -98,6 +100,11 @@ export function Nutrition({
   const [submitting, setSubmitting] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const calorieInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (autoFocusAdd) calorieInputRef.current?.focus()
+  }, [autoFocusAdd])
 
   const [editingGoal, setEditingGoal] = useState(false)
   const [goalCalories, setGoalCalories] = useState(goal?.calories != null ? String(goal.calories) : '')
@@ -277,6 +284,7 @@ export function Nutrition({
           <label className="flex-1 space-y-1">
             <span className="text-sm text-text-muted">Calories</span>
             <input
+              ref={calorieInputRef}
               type="number"
               inputMode="numeric"
               value={calories}

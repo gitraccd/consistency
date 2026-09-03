@@ -82,6 +82,7 @@ export default function App() {
   const [showNewProgram, setShowNewProgram] = useState(false)
   const [activeCell, setActiveCell] = useState<ActiveCell | null>(null)
   const [liftTrackerDay, setLiftTrackerDay] = useState<string | null>(null)
+  const [nutritionFocusAdd, setNutritionFocusAdd] = useState(false)
 
   function refresh() {
     loadData()
@@ -145,7 +146,10 @@ export default function App() {
             setLiftTrackerDay(dayName)
             setView('lift-tracker')
           }}
-          onOpenNutrition={() => setView('nutrition')}
+          onOpenNutrition={(focusAdd) => {
+            setNutritionFocusAdd(focusAdd ?? false)
+            setView('nutrition')
+          }}
           onNewProgram={() => setShowNewProgram(true)}
         />
       )}
@@ -185,6 +189,7 @@ export default function App() {
         <Nutrition
           recent={data.recentNutritionLogs}
           goal={data.nutritionGoal}
+          autoFocusAdd={nutritionFocusAdd}
           onSaved={refresh}
           onBack={() => setView('home')}
         />
