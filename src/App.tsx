@@ -8,6 +8,7 @@ import {
   fetchLoggedSets,
   fetchRecentNutritionLogs,
   fetchNutritionGoal,
+  insertLoggedSet,
 } from './lib/api'
 import { currentWeekNumber } from './lib/weeks'
 import type { WeekNumber } from './lib/calc'
@@ -91,6 +92,19 @@ export default function App() {
       .catch((e) => setError(e instanceof Error ? e.message : String(e)))
   }
 
+  async function handleQuickLog(setGroup: SetGroup, weight: number, reps: number) {
+    await insertLoggedSet({
+      programId: data!.program!.id,
+      setGroupId: setGroup.id,
+      weekNumber: currentWeek,
+      weight,
+      reps,
+      rpe: null,
+      isMaxEffort: false,
+    })
+    refresh()
+  }
+
   useEffect(refresh, [])
 
   if (error) {
@@ -161,6 +175,7 @@ export default function App() {
               weeklyTargets={data.weeklyTargets}
               loggedSets={data.loggedSets}
               onCellClick={(setGroup) => setActiveCell({ setGroup, week: currentWeek })}
+              onQuickLog={handleQuickLog}
               onBack={() => setView('home')}
             />
           ) : null
