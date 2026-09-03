@@ -48,7 +48,11 @@ export function LiftTracker({
             Week {currentWeek} of 6{currentWeek === 6 ? ' (Deload)' : ''}
           </p>
         </div>
-        <button onClick={onBack} className="text-text-muted">
+        <button
+          onClick={onBack}
+          aria-label="Close"
+          className="-m-2.5 flex h-11 w-11 shrink-0 items-center justify-center text-text-muted"
+        >
           ✕
         </button>
       </div>
@@ -102,7 +106,7 @@ export function LiftTracker({
                       onClick={() => handleQuickLog(sg, Number(target), sg.reps)}
                       disabled={loggingId === sg.id}
                       aria-label={`Log ${target} for ${sg.reps} reps as planned`}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-success transition-transform active:scale-90 disabled:opacity-40"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-2 text-success transition-transform active:scale-90 disabled:opacity-40"
                     >
                       <Check className="h-4 w-4" strokeWidth={3} />
                     </button>

@@ -83,7 +83,11 @@ export function LogPopover({
               {targetWeight ? ` · target ${targetWeight} lb` : ''}
             </p>
           </div>
-          <button onClick={onClose} className="text-text-muted">
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="-m-2.5 flex h-11 w-11 shrink-0 items-center justify-center text-text-muted"
+          >
             ✕
           </button>
         </div>
@@ -101,7 +105,7 @@ export function LogPopover({
                   onClick={() => handleDelete(l.id)}
                   disabled={deletingId === l.id}
                   aria-label="Delete set"
-                  className="px-1 text-text-muted hover:text-danger disabled:opacity-40"
+                  className="-m-1.5 flex h-10 w-10 shrink-0 items-center justify-center text-text-muted hover:text-danger disabled:opacity-40"
                 >
                   ✕
                 </button>

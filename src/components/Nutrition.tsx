@@ -184,7 +184,11 @@ export function Nutrition({
     <div className="page-enter mx-auto max-w-md space-y-4 p-4 pb-24">
       <div className="flex items-start justify-between">
         <h1 className="text-xl font-semibold">Nutrition</h1>
-        <button onClick={onBack} className="text-text-muted">
+        <button
+          onClick={onBack}
+          aria-label="Close"
+          className="-m-2.5 flex h-11 w-11 shrink-0 items-center justify-center text-text-muted"
+        >
           ✕
         </button>
       </div>
@@ -263,7 +267,7 @@ export function Nutrition({
                   onClick={() => handleDelete(log.id)}
                   disabled={deletingId === log.id}
                   aria-label="Delete entry"
-                  className="px-1 text-text-muted hover:text-danger disabled:opacity-40"
+                  className="-m-1.5 flex h-10 w-10 shrink-0 items-center justify-center text-text-muted hover:text-danger disabled:opacity-40"
                 >
                   ✕
                 </button>

@@ -26,6 +26,10 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+button {
+  touch-action: manipulation;
+}
+
 @keyframes page-enter {
   from {
     opacity: 0;

@@ -118,7 +118,7 @@ export default function App() {
 
   if (!data) {
     return (
-      <div className="flex min-h-screen items-center justify-center gap-1.5">
+      <div className="flex min-h-dvh items-center justify-center gap-1.5">
         <span className="pulse-dot h-2 w-2 rounded-full bg-text-muted" style={{ animationDelay: '0ms' }} />
         <span className="pulse-dot h-2 w-2 rounded-full bg-text-muted" style={{ animationDelay: '150ms' }} />
         <span className="pulse-dot h-2 w-2 rounded-full bg-text-muted" style={{ animationDelay: '300ms' }} />
@@ -141,7 +141,7 @@ export default function App() {
     : []
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-dvh">
       {view === 'home' && (
         <Home
           program={data.program}
