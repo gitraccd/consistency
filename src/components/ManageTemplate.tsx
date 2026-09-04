@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { ChevronDown, ChevronUp, Pencil, Plus } from 'lucide-react'
 import {
   createDay,
@@ -372,8 +372,14 @@ function ExerciseForm({
   const testable = exercises.filter((e) => e.requires_test && e.id !== initial?.id)
   const valid = name.trim() !== '' && (kind !== 'borrows' || sourceId !== '')
 
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    if (!valid || busy) return
+    onSubmit({ name: name.trim(), requiresTest: kind === 'tested', e1rmSourceExerciseId: kind === 'borrows' ? sourceId : null })
+  }
+
   return (
-    <div className="space-y-2 rounded-lg bg-surface-2/60 p-3">
+    <form onSubmit={handleSubmit} className="space-y-2 rounded-lg bg-surface-2/60 p-3">
       <input
         autoFocus
         value={name}
@@ -398,19 +404,17 @@ function ExerciseForm({
       )}
       <div className="flex gap-2">
         <button
-          onClick={() =>
-            onSubmit({ name: name.trim(), requiresTest: kind === 'tested', e1rmSourceExerciseId: kind === 'borrows' ? sourceId : null })
-          }
+          type="submit"
           disabled={!valid || busy}
           className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-text disabled:opacity-40"
         >
           Save
         </button>
-        <button onClick={onCancel} className="text-sm text-text-muted">
+        <button type="button" onClick={onCancel} className="text-sm text-text-muted">
           Cancel
         </button>
       </div>
-    </div>
+    </form>
   )
 }
 
@@ -431,8 +435,14 @@ function DayForm({
   const [dayOfWeek, setDayOfWeek] = useState(initial?.dayOfWeek != null ? String(initial.dayOfWeek) : '')
   const collision = dayOfWeek !== '' && usedWeekdays.includes(Number(dayOfWeek))
 
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    if (name.trim() === '' || busy) return
+    onSubmit({ name: name.trim(), dayOfWeek: dayOfWeek === '' ? null : Number(dayOfWeek) })
+  }
+
   return (
-    <div className="space-y-2 rounded-lg bg-surface-2/60 p-3">
+    <form onSubmit={handleSubmit} className="space-y-2 rounded-lg bg-surface-2/60 p-3">
       <input
         autoFocus
         value={name}
@@ -455,17 +465,17 @@ function DayForm({
       )}
       <div className="flex gap-2">
         <button
-          onClick={() => onSubmit({ name: name.trim(), dayOfWeek: dayOfWeek === '' ? null : Number(dayOfWeek) })}
+          type="submit"
           disabled={name.trim() === '' || busy}
           className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-text disabled:opacity-40"
         >
           Save
         </button>
-        <button onClick={onCancel} className="text-sm text-text-muted">
+        <button type="button" onClick={onCancel} className="text-sm text-text-muted">
           Cancel
         </button>
       </div>
-    </div>
+    </form>
   )
 }
 
@@ -652,7 +662,8 @@ function SetGroupSheet({
     numSets !== '' &&
     (isFreeform || (week1Percentage !== '' && increments.every((i) => i !== '')))
 
-  function handleSubmit() {
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault()
     if (!valid) return
     onSubmit({
       dayExerciseId,
@@ -669,13 +680,14 @@ function SetGroupSheet({
 
   return (
     <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/60 sm:items-center" onClick={onClose}>
-      <div
+      <form
+        onSubmit={handleSubmit}
         className="w-full max-w-sm space-y-3 rounded-t-2xl bg-surface p-4 sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between">
           <h2 className="font-semibold">{setGroup ? 'Edit set/rep scheme' : 'New set/rep scheme'}</h2>
-          <button onClick={onClose} aria-label="Close" className="-m-2.5 flex h-11 w-11 shrink-0 items-center justify-center text-text-muted">
+          <button type="button" onClick={onClose} aria-label="Close" className="-m-2.5 flex h-11 w-11 shrink-0 items-center justify-center text-text-muted">
             ✕
           </button>
         </div>
@@ -767,13 +779,13 @@ function SetGroupSheet({
         )}
 
         <button
-          onClick={handleSubmit}
+          type="submit"
           disabled={!valid || busy}
           className="w-full rounded-xl bg-accent py-3 font-medium text-accent-text transition-transform active:scale-[0.98] disabled:opacity-40"
         >
           Save
         </button>
-      </div>
+      </form>
     </div>
   )
 }

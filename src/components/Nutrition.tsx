@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Drumstick, Flame, Pencil } from 'lucide-react'
 import {
   deleteNutritionLog,
@@ -179,7 +179,8 @@ function NutritionEntryRow({
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function handleSave() {
+  async function handleSave(e: FormEvent) {
+    e.preventDefault()
     setSaving(true)
     setError(null)
     try {
@@ -212,44 +213,46 @@ function NutritionEntryRow({
 
   if (editing) {
     return (
-      <li className="space-y-2 py-2">
-        <input
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          placeholder="Label (optional)"
-          className="w-full rounded-lg bg-surface-2 px-2 py-1.5 text-sm"
-        />
-        <div className="flex gap-2">
+      <li>
+        <form onSubmit={handleSave} className="space-y-2 py-2">
           <input
-            type="number"
-            inputMode="numeric"
-            value={calories}
-            onChange={(e) => setCalories(e.target.value)}
-            placeholder="Calories"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="Label (optional)"
             className="w-full rounded-lg bg-surface-2 px-2 py-1.5 text-sm"
           />
-          <input
-            type="number"
-            inputMode="numeric"
-            value={protein}
-            onChange={(e) => setProtein(e.target.value)}
-            placeholder="Protein (g)"
-            className="w-full rounded-lg bg-surface-2 px-2 py-1.5 text-sm"
-          />
-        </div>
-        {error && <p className="text-sm text-danger">{error}</p>}
-        <div className="flex gap-2">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-text disabled:opacity-40"
-          >
-            Save
-          </button>
-          <button onClick={() => setEditing(false)} className="text-sm text-text-muted">
-            Cancel
-          </button>
-        </div>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              inputMode="numeric"
+              value={calories}
+              onChange={(e) => setCalories(e.target.value)}
+              placeholder="Calories"
+              className="w-full rounded-lg bg-surface-2 px-2 py-1.5 text-sm"
+            />
+            <input
+              type="number"
+              inputMode="numeric"
+              value={protein}
+              onChange={(e) => setProtein(e.target.value)}
+              placeholder="Protein (g)"
+              className="w-full rounded-lg bg-surface-2 px-2 py-1.5 text-sm"
+            />
+          </div>
+          {error && <p className="text-sm text-danger">{error}</p>}
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={saving}
+              className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-text disabled:opacity-40"
+            >
+              Save
+            </button>
+            <button type="button" onClick={() => setEditing(false)} className="text-sm text-text-muted">
+              Cancel
+            </button>
+          </div>
+        </form>
       </li>
     )
   }
@@ -335,7 +338,8 @@ export function Nutrition({
 
   const valid = calories !== '' || protein !== ''
 
-  async function handleSaveGoal() {
+  async function handleSaveGoal(e: FormEvent) {
+    e.preventDefault()
     setSavingGoal(true)
     setError(null)
     try {
@@ -352,7 +356,8 @@ export function Nutrition({
     }
   }
 
-  async function handleAdd() {
+  async function handleAdd(e: FormEvent) {
+    e.preventDefault()
     if (!valid) return
     setSubmitting(true)
     setError(null)
@@ -414,7 +419,7 @@ export function Nutrition({
       </div>
 
       {editingGoal && (
-        <div className="space-y-3 rounded-xl bg-surface p-4">
+        <form onSubmit={handleSaveGoal} className="space-y-3 rounded-xl bg-surface p-4">
           <div className="flex gap-2">
             <label className="flex-1 space-y-1">
               <span className="text-sm text-text-muted">Calorie target</span>
@@ -438,13 +443,13 @@ export function Nutrition({
             </label>
           </div>
           <button
-            onClick={handleSaveGoal}
+            type="submit"
             disabled={savingGoal}
             className="w-full rounded-xl bg-accent py-3 font-medium text-accent-text transition-transform active:scale-[0.98] disabled:opacity-40"
           >
             {savingGoal ? 'Saving…' : 'Save goal'}
           </button>
-        </div>
+        </form>
       )}
 
       {todaysEntries.length > 0 && (
@@ -457,7 +462,7 @@ export function Nutrition({
         </div>
       )}
 
-      <div className="space-y-3 rounded-xl bg-surface p-4">
+      <form onSubmit={handleAdd} className="space-y-3 rounded-xl bg-surface p-4">
         <p className="text-sm text-text-muted">Add a meal or snack</p>
 
         <label className="block space-y-1">
@@ -498,13 +503,13 @@ export function Nutrition({
         {error && <p className="text-sm text-danger">{error}</p>}
 
         <button
-          onClick={handleAdd}
+          type="submit"
           disabled={!valid || submitting}
           className="w-full rounded-xl bg-accent py-3 font-medium text-accent-text transition-transform active:scale-[0.98] disabled:opacity-40"
         >
           {submitting ? 'Adding…' : 'Add'}
         </button>
-      </div>
+      </form>
 
       <div className="space-y-4 rounded-xl bg-surface p-4">
         <div className="flex items-center justify-between">

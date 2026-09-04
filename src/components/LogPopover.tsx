@@ -1,5 +1,5 @@
 import { Pencil } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type FormEvent, type KeyboardEvent } from 'react'
 import { deleteLoggedSet, errorMessage, insertLoggedSet, upsertWeeklyTarget, type LoggedSet, type SetGroup } from '../lib/api'
 import type { TargetWeek, WeekNumber } from '../lib/calc'
 
@@ -70,7 +70,8 @@ export function LogPopover({
     }
   }
 
-  async function handleAdd() {
+  async function handleAdd(e: FormEvent) {
+    e.preventDefault()
     if (!valid) return
     setSubmitting(true)
     setError(null)
@@ -130,6 +131,9 @@ export function LogPopover({
                   inputMode="decimal"
                   value={targetInput}
                   onChange={(e) => setTargetInput(e.target.value)}
+                  onKeyDown={(e: KeyboardEvent) => {
+                    if (e.key === 'Enter' && targetInput !== '') handleSaveTarget()
+                  }}
                   className="w-20 rounded-lg bg-surface-2 px-2 py-1 text-sm"
                 />
                 <button
@@ -176,59 +180,61 @@ export function LogPopover({
           </ul>
         )}
 
-        <div className="flex items-end gap-2">
-          <label className="flex-1 space-y-1">
-            <span className="text-sm text-text-muted">Weight</span>
-            <input
-              autoFocus
-              type="number"
-              inputMode="decimal"
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-              className="w-full rounded-lg bg-surface-2 px-3 py-2 text-lg"
-            />
-          </label>
-          <label className="flex-1 space-y-1">
-            <span className="text-sm text-text-muted">Reps</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={reps}
-              onChange={(e) => setReps(e.target.value)}
-              className="w-full rounded-lg bg-surface-2 px-3 py-2 text-lg"
-            />
-          </label>
-          <button
-            onClick={handleAdd}
-            disabled={!valid || submitting}
-            className="rounded-lg bg-accent px-4 py-2 font-medium text-accent-text transition-transform active:scale-[0.98] disabled:opacity-40"
-          >
-            Add
-          </button>
-        </div>
-
-        {!showMore ? (
-          <button onClick={() => setShowMore(true)} className="text-sm text-text-muted">
-            + RPE / max effort
-          </button>
-        ) : (
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 text-sm text-text-muted">
-              RPE
+        <form onSubmit={handleAdd} className="space-y-3">
+          <div className="flex items-end gap-2">
+            <label className="flex-1 space-y-1">
+              <span className="text-sm text-text-muted">Weight</span>
               <input
+                autoFocus
                 type="number"
                 inputMode="decimal"
-                value={rpe}
-                onChange={(e) => setRpe(e.target.value)}
-                className="w-16 rounded-lg bg-surface-2 px-2 py-1"
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
+                className="w-full rounded-lg bg-surface-2 px-3 py-2 text-lg"
               />
             </label>
-            <label className="flex items-center gap-2 text-sm text-text-muted">
-              <input type="checkbox" checked={isMaxEffort} onChange={(e) => setIsMaxEffort(e.target.checked)} />
-              Max effort
+            <label className="flex-1 space-y-1">
+              <span className="text-sm text-text-muted">Reps</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                value={reps}
+                onChange={(e) => setReps(e.target.value)}
+                className="w-full rounded-lg bg-surface-2 px-3 py-2 text-lg"
+              />
             </label>
+            <button
+              type="submit"
+              disabled={!valid || submitting}
+              className="rounded-lg bg-accent px-4 py-2 font-medium text-accent-text transition-transform active:scale-[0.98] disabled:opacity-40"
+            >
+              Add
+            </button>
           </div>
-        )}
+
+          {!showMore ? (
+            <button type="button" onClick={() => setShowMore(true)} className="text-sm text-text-muted">
+              + RPE / max effort
+            </button>
+          ) : (
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-sm text-text-muted">
+                RPE
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={rpe}
+                  onChange={(e) => setRpe(e.target.value)}
+                  className="w-16 rounded-lg bg-surface-2 px-2 py-1"
+                />
+              </label>
+              <label className="flex items-center gap-2 text-sm text-text-muted">
+                <input type="checkbox" checked={isMaxEffort} onChange={(e) => setIsMaxEffort(e.target.checked)} />
+                Max effort
+              </label>
+            </div>
+          )}
+        </form>
 
         {error && <p className="text-sm text-danger">{error}</p>}
       </div>

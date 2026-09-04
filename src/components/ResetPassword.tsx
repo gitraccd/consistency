@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { errorMessage } from '../lib/api'
 import { supabase } from '../lib/supabase'
 
@@ -11,7 +11,8 @@ export function ResetPassword({ onDone }: { onDone: () => void }) {
 
   const valid = password.length >= 6 && password === confirm
 
-  async function handleSubmit() {
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
     if (!valid) return
     setSubmitting(true)
     setError(null)
@@ -33,7 +34,7 @@ export function ResetPassword({ onDone }: { onDone: () => void }) {
           <h1 className="text-2xl font-bold tracking-tight">Set a new password</h1>
         </div>
 
-        <div className="space-y-3 rounded-xl bg-surface p-4">
+        <form onSubmit={handleSubmit} className="space-y-3 rounded-xl bg-surface p-4">
           <label className="block space-y-1">
             <span className="text-sm text-text-muted">New password</span>
             <input
@@ -61,13 +62,13 @@ export function ResetPassword({ onDone }: { onDone: () => void }) {
           {error && <p className="text-sm text-danger">{error}</p>}
 
           <button
-            onClick={handleSubmit}
+            type="submit"
             disabled={!valid || submitting}
             className="w-full rounded-xl bg-accent py-3 font-medium text-accent-text transition-transform active:scale-[0.98] disabled:opacity-40"
           >
             {submitting ? 'Saving…' : 'Save password'}
           </button>
-        </div>
+        </form>
       </div>
     </div>
   )

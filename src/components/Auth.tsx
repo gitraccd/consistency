@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { errorMessage } from '../lib/api'
 import { supabase } from '../lib/supabase'
 
@@ -13,7 +13,8 @@ export function Auth() {
 
   const valid = mode === 'forgot' ? email.trim() !== '' : email.trim() !== '' && password.length >= 6
 
-  async function handleSubmit() {
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
     if (!valid) return
     setSubmitting(true)
     setError(null)
@@ -50,10 +51,11 @@ export function Auth() {
           <p className="mt-1 text-sm text-text-muted">Percentage-based strength training, built around a real block.</p>
         </div>
 
-        <div className="space-y-3 rounded-xl bg-surface p-4">
+        <form onSubmit={handleSubmit} className="space-y-3 rounded-xl bg-surface p-4">
           {mode !== 'forgot' && (
             <div className="flex gap-2">
               <button
+                type="button"
                 onClick={() => setMode('login')}
                 className={`flex-1 rounded-lg py-2 text-sm font-medium transition-transform active:scale-95 ${
                   mode === 'login' ? 'bg-text text-bg' : 'bg-surface-2 text-text-muted'
@@ -62,6 +64,7 @@ export function Auth() {
                 Log in
               </button>
               <button
+                type="button"
                 onClick={() => setMode('signup')}
                 className={`flex-1 rounded-lg py-2 text-sm font-medium transition-transform active:scale-95 ${
                   mode === 'signup' ? 'bg-text text-bg' : 'bg-surface-2 text-text-muted'
@@ -102,12 +105,12 @@ export function Auth() {
           )}
 
           {mode === 'login' && (
-            <button onClick={() => setMode('forgot')} className="text-sm text-text-muted underline">
+            <button type="button" onClick={() => setMode('forgot')} className="text-sm text-text-muted underline">
               Forgot password?
             </button>
           )}
           {mode === 'forgot' && (
-            <button onClick={() => setMode('login')} className="text-sm text-text-muted underline">
+            <button type="button" onClick={() => setMode('login')} className="text-sm text-text-muted underline">
               Back to log in
             </button>
           )}
@@ -121,13 +124,13 @@ export function Auth() {
           )}
 
           <button
-            onClick={handleSubmit}
+            type="submit"
             disabled={!valid || submitting}
             className="w-full rounded-xl bg-accent py-3 font-medium text-accent-text transition-transform active:scale-[0.98] disabled:opacity-40"
           >
             {submitting ? 'Please wait…' : mode === 'signup' ? 'Create account' : mode === 'forgot' ? 'Send reset link' : 'Log in'}
           </button>
-        </div>
+        </form>
       </div>
     </div>
   )
