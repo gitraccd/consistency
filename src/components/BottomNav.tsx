@@ -1,9 +1,10 @@
-export type NavView = 'home' | 'program' | 'lift-tracker' | 'nutrition'
+export type NavView = 'home' | 'program' | 'history' | 'lift-tracker' | 'nutrition'
 
 export function BottomNav({ active, onNavigate }: { active: NavView; onNavigate: (view: NavView) => void }) {
   const items: { view: NavView; label: string }[] = [
     { view: 'home', label: 'Home' },
     { view: 'program', label: 'Program' },
+    { view: 'history', label: 'History' },
   ]
 
   return (

@@ -1,22 +1,29 @@
 -- Consistency app schema
 -- Run this in the Supabase SQL Editor (Project > SQL Editor > New query).
 --
--- Models the real program structure: a block runs 3 training days per week
--- (Heavy / Volume / Technique), each day has several exercises, and a single
--- exercise can have multiple independent set/rep/weight schemes within one
--- day (e.g. Heavy Bench = a top single AND a separate back-off scheme).
--- Days/exercises/set_groups are a fixed template (seeded once, not
+-- Models the real program structure: a block runs several training days per
+-- week (Heavy / Volume / Deadlift / Squat / Technique), each day has
+-- several exercises, and a single exercise can have multiple independent
+-- set/rep/weight schemes within one day (e.g. Heavy Bench = a top single
+-- AND a separate back-off scheme).
+-- Days/exercises/set_groups are a fixed template (seeded once per user, not
 -- per-program) that every block reuses; only exercise_tests/weekly_targets/
--- logged_sets are per-program. One E1RM test per real exercise (just Bench
--- today) drives every set-group derived from it, including "Paused Bench"
--- which borrows Bench's E1RM via e1rm_source_exercise_id at a lower
--- percentage. Freeform set-groups (accessories, "Moderate Intensity" work)
--- have no percentage/increments at all -- just a rep/set target, logged
--- freely. Blocks are 6 weeks: weeks 1-5 are programmed, week 6 is an
--- unprogrammed deload (no weekly_targets row, but logged_sets still allows
--- it since real sets get logged that week).
+-- logged_sets are per-program. One E1RM test per real exercise drives every
+-- set-group derived from it, including a variant like "Paused Bench" which
+-- borrows Bench's E1RM via e1rm_source_exercise_id at a lower percentage.
+-- Freeform set-groups (accessories, "Moderate Intensity" work) have no
+-- percentage/increments at all -- just a rep/set target, logged freely.
+-- Blocks are 6 weeks: weeks 1-5 are programmed, week 6 is an unprogrammed
+-- deload (no weekly_targets row, but logged_sets still allows it since real
+-- sets get logged that week).
 --
--- Single-user app (no auth) -- see RLS note at the bottom.
+-- Multi-tenant via Supabase Auth: every table has a user_id defaulting to
+-- auth.uid(), and RLS restricts every row to its owner (see the bottom of
+-- this file). A fresh install seeds NO exercises/days/set_groups -- that
+-- data is per-user now, not global -- see bootstrapStarterTemplate() in
+-- src/lib/api.ts, which is the one place the actual starter numbers
+-- (Squat/Bench/Deadlift/Weighted Pull-up/Weighted Dip and their
+-- percentages) live, run once for a brand-new account via an in-app button.
 
 drop table if exists logged_sets cascade;
 drop table if exists weekly_targets cascade;
@@ -37,6 +44,7 @@ create extension if not exists pgcrypto;
 -- One 5-programmed-week + 1-deload-week block with a start date.
 create table programs (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) default auth.uid(),
   start_date date not null,
   created_at timestamptz not null default now()
 );
@@ -44,26 +52,32 @@ create table programs (
 -- Real trainable movements. e1rm_source_exercise_id lets a variant (e.g.
 -- "Paused Bench") borrow another exercise's tested E1RM instead of needing
 -- its own test. requires_test=true means this exercise gets its own
--- exercise_tests entry each program (just Bench today).
+-- exercise_tests entry each program.
 create table exercises (
   id uuid primary key default gen_random_uuid(),
-  name text not null unique,
+  user_id uuid references auth.users(id) default auth.uid(),
+  name text not null,
   requires_test boolean not null default false,
   e1rm_source_exercise_id uuid references exercises(id),
   created_at timestamptz not null default now()
 );
 
 -- Heavy / Volume / Technique -- the fixed weekly training-day split.
+-- day_of_week: 0=Sun..6=Sat (JS Date#getDay() convention), null = no fixed
+-- weekday -- drives scheduledDayName() in src/lib/schedule.ts.
 create table days (
   id uuid primary key default gen_random_uuid(),
-  name text not null unique,
-  sort_order int not null default 0
+  user_id uuid references auth.users(id) default auth.uid(),
+  name text not null,
+  sort_order int not null default 0,
+  day_of_week int
 );
 
 -- Which exercises appear on which day, and in what order. The same
 -- exercise (e.g. Bench) can appear under multiple days as separate rows.
 create table day_exercises (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) default auth.uid(),
   day_id uuid not null references days(id) on delete cascade,
   exercise_id uuid not null references exercises(id),
   sort_order int not null default 0
@@ -75,10 +89,11 @@ create table day_exercises (
 -- only set when is_freeform=false.
 -- weekly_plan holds a WeeklyPlanEntry[] (see database.types.ts) for
 -- RPE-autoregulated progressions that don't have a tested E1RM to derive a
--- weight target from (e.g. Weighted Pull-up) -- an alternative to
--- week1_percentage/increments, not used together with it.
+-- weight target from -- an alternative to week1_percentage/increments, not
+-- used together with it.
 create table set_groups (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) default auth.uid(),
   day_exercise_id uuid not null references day_exercises(id) on delete cascade,
   reps int not null,
   num_sets int not null,
@@ -87,13 +102,17 @@ create table set_groups (
   week1_percentage numeric,
   increments jsonb,
   weekly_plan jsonb,
-  sort_order int not null default 0
+  sort_order int not null default 0,
+  -- Rest-timer override in seconds. Null = use the app-wide default
+  -- (a Heavy top single may want longer rest than backoff/volume work).
+  rest_seconds int
 );
 
 -- The one-time test that seeds E1RM-derived set-groups for a program.
 -- Only for exercises with requires_test=true.
 create table exercise_tests (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) default auth.uid(),
   program_id uuid not null references programs(id) on delete cascade,
   exercise_id uuid not null references exercises(id),
   mode text not null check (mode in ('raw_epley', 'rpe_based', 'manual_e1rm')),
@@ -110,6 +129,7 @@ create table exercise_tests (
 -- week 6 (deload) -- it's a label in the UI, not a computed number.
 create table weekly_targets (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) default auth.uid(),
   program_id uuid not null references programs(id) on delete cascade,
   set_group_id uuid not null references set_groups(id) on delete cascade,
   week_number int not null check (week_number between 1 and 5),
@@ -122,6 +142,7 @@ create table weekly_targets (
 -- has no weekly_targets row.
 create table logged_sets (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) default auth.uid(),
   program_id uuid not null references programs(id) on delete cascade,
   set_group_id uuid not null references set_groups(id) on delete cascade,
   week_number int not null check (week_number between 1 and 6),
@@ -133,9 +154,10 @@ create table logged_sets (
 );
 
 -- Per-exercise correction factor, persists across programs. Only
--- meaningful for requires_test=true exercises (just Bench today).
+-- meaningful for requires_test=true exercises.
 create table calibrations (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) default auth.uid(),
   exercise_id uuid not null unique references exercises(id),
   correction_factor numeric not null default 1.0,
   data_point_count int not null default 0,
@@ -150,6 +172,7 @@ create table calibrations (
 -- elsewhere, by design -- not in this app.
 create table nutrition_logs (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) default auth.uid(),
   log_date date not null,
   label text,
   calories numeric,
@@ -157,135 +180,23 @@ create table nutrition_logs (
   logged_at timestamptz not null default now()
 );
 
--- Daily calorie/protein target. Always a single row, upserted at a fixed
--- id from the app (see NUTRITION_GOAL_ID in api.ts) -- there's only ever
--- one current goal, not a history of past goals.
+-- Daily calorie/protein target. One row per user (unique on user_id),
+-- upserted via onConflict:'user_id' -- there's only ever one current goal
+-- per user, not a history of past goals.
 create table nutrition_goals (
-  id uuid primary key,
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) default auth.uid() unique,
   calories numeric,
   protein numeric,
   updated_at timestamptz not null default now()
 );
 
--- Seed: exercises. Bench and Deadlift are tested exercises; Paused Bench
--- derives its E1RM from Bench at a lower percentage. Everything else is
--- freeform. Deadlift has its own dedicated day (1x/week) given its much
--- higher systemic/spinal fatigue cost vs. Bench's 3x/week spread. Pull-up
--- is a distinct exercise from Weighted Pull-up -- bodyweight-only, used for
--- Technique day's light/no-fatigue pulling work, no set/rep prescription.
-insert into exercises (name, requires_test) values ('Bench', true);
-insert into exercises (name, requires_test, e1rm_source_exercise_id)
-  values ('Paused Bench', false, (select id from exercises where name = 'Bench'));
-insert into exercises (name, requires_test) values ('Deadlift', true);
-insert into exercises (name) values
-  ('Weighted Pull-up'),
-  ('Pull-up'),
-  ('Incline DB'),
-  ('Chest-Supported Row'),
-  ('Weighted Dip');
-
-insert into calibrations (exercise_id)
-  select id from exercises where requires_test = true;
-
--- Seed: days. Weekday schedule: Mon=Heavy, Thu=Volume, Fri=Deadlift, Sat=Technique.
-insert into days (name, sort_order) values
-  ('Heavy', 1),
-  ('Volume', 2),
-  ('Deadlift', 3),
-  ('Technique', 4);
-
--- Seed: day_exercises. Deadlift is its own dedicated day (Friday), separate
--- from the Bench days -- Weighted Pull-up stays on Heavy/Volume/Technique
--- (the Bench days) as before, not moved to the Deadlift day.
-insert into day_exercises (day_id, exercise_id, sort_order) values
-  ((select id from days where name = 'Heavy'), (select id from exercises where name = 'Bench'), 1),
-  ((select id from days where name = 'Heavy'), (select id from exercises where name = 'Weighted Pull-up'), 2),
-  ((select id from days where name = 'Heavy'), (select id from exercises where name = 'Incline DB'), 3),
-  ((select id from days where name = 'Heavy'), (select id from exercises where name = 'Chest-Supported Row'), 4),
-  ((select id from days where name = 'Deadlift'), (select id from exercises where name = 'Deadlift'), 1),
-  ((select id from days where name = 'Volume'), (select id from exercises where name = 'Bench'), 1),
-  ((select id from days where name = 'Volume'), (select id from exercises where name = 'Weighted Pull-up'), 2),
-  ((select id from days where name = 'Volume'), (select id from exercises where name = 'Weighted Dip'), 3),
-  ((select id from days where name = 'Volume'), (select id from exercises where name = 'Chest-Supported Row'), 4),
-  ((select id from days where name = 'Technique'), (select id from exercises where name = 'Paused Bench'), 1),
-  ((select id from days where name = 'Technique'), (select id from exercises where name = 'Pull-up'), 2),
-  ((select id from days where name = 'Technique'), (select id from exercises where name = 'Incline DB'), 3),
-  ((select id from days where name = 'Technique'), (select id from exercises where name = 'Chest-Supported Row'), 4);
-
--- Seed: set_groups. Percentages back-calculated against a 240lb E1RM
--- (225x1 @ RPE9, the real test this spreadsheet was built from):
---   Heavy top single  195/240 = 0.8125
---   Heavy back-off     180/240 = 0.75
---   Volume top set     185/240 = 0.770833
---   Technique top set   175/240 = 0.729167
--- Increments are the cumulative additive weekly jumps observed in the
--- spreadsheet (week2 = week1 + increments[0], week3 = week1 + [0]+[1], ...).
---
--- Weighted Pull-up uses weekly_plan (RPE-autoregulated, no tested E1RM)
--- instead of week1_percentage/increments -- see database.types.ts
--- WeeklyPlanEntry. Decided 2026-08-14: Heavy day = top single + back-off,
--- Volume day = 4-8 rep volume work, Technique day = light bodyweight pulling
--- (kept flat, no weekly_plan -- it's meant to stay low-fatigue all block,
--- not progress). Base reps/num_sets on rows with a weekly_plan are just the
--- week-1 fallback for exercises that read weekly_plan; the UI should prefer
--- the current week's weekly_plan entry when one exists.
-insert into set_groups (day_exercise_id, reps, num_sets, is_freeform, intensity_note, week1_percentage, increments, weekly_plan, sort_order) values
-  -- Heavy
-  ((select id from day_exercises where day_id = (select id from days where name = 'Heavy') and exercise_id = (select id from exercises where name = 'Bench')),
-    1, 1, false, null, 0.8125, '[5,10,10,15]'::jsonb, null, 1),
-  ((select id from day_exercises where day_id = (select id from days where name = 'Heavy') and exercise_id = (select id from exercises where name = 'Bench')),
-    3, 4, false, null, 0.75, '[10,10,5,10]'::jsonb, null, 2),
-  ((select id from day_exercises where day_id = (select id from days where name = 'Heavy') and exercise_id = (select id from exercises where name = 'Weighted Pull-up')),
-    1, 1, true, null, null, null,
-    '[{"week":1,"sets":1,"reps":1,"target_rpe":"RPE 7.5-8","note":"Top single"},{"week":2,"sets":1,"reps":1,"target_rpe":"RPE ~8","note":"Top single"},{"week":3,"sets":1,"reps":1,"target_rpe":"RPE 8-8.5","note":"Top single"},{"week":4,"sets":1,"reps":1,"target_rpe":"RPE 8.5-9","note":"Top single"},{"week":5,"sets":1,"reps":1,"target_rpe":"RPE 9-9.5","note":"Test: heavy single"}]'::jsonb,
-    1),
-  ((select id from day_exercises where day_id = (select id from days where name = 'Heavy') and exercise_id = (select id from exercises where name = 'Weighted Pull-up')),
-    3, 2, true, null, null, null,
-    '[{"week":1,"sets":2,"reps":3,"target_rpe":null,"note":"~85-88% of top single"},{"week":2,"sets":3,"reps":2,"target_rpe":null,"note":"~85-88% of top single"},{"week":3,"sets":2,"reps":2,"target_rpe":null,"note":"~87-90% of top single"},{"week":4,"sets":1,"reps":2,"target_rpe":null,"note":"~90% of top single"},{"week":5,"sets":0,"reps":0,"target_rpe":null,"note":"Skip - test day"}]'::jsonb,
-    2),
-  ((select id from day_exercises where day_id = (select id from days where name = 'Heavy') and exercise_id = (select id from exercises where name = 'Incline DB')),
-    8, 2, true, null, null, null, null, 1),
-  ((select id from day_exercises where day_id = (select id from days where name = 'Heavy') and exercise_id = (select id from exercises where name = 'Chest-Supported Row')),
-    8, 2, true, null, null, null, null, 1),
-  -- Deadlift: its own dedicated day (Friday), 1x/week, given its much
-  -- higher systemic/spinal fatigue cost vs. Bench's 3x/week spread. Trusted
-  -- test 375x1 @ RPE9 -> E1RM ~400 (rpeBased1RM). Cap raised to ~97.5% E1RM
-  -- (was 92.5%) -- a 1RM estimated from a 1-rep RPE9 single already runs
-  -- ~6.7% above the actual weight lifted (Epley's RIR extrapolation), so a
-  -- 92.5% cap let week 5 land *below* the weight already pulled on test
-  -- day -- the opposite of progressive overload. 97.5% mirrors Bench's own
-  -- margin and reliably peaks past the tested single instead.
-  ((select id from day_exercises where day_id = (select id from days where name = 'Deadlift') and exercise_id = (select id from exercises where name = 'Deadlift')),
-    1, 1, false, null, 0.80, '[15,15,15,25]'::jsonb, null, 1),
-  ((select id from day_exercises where day_id = (select id from days where name = 'Deadlift') and exercise_id = (select id from exercises where name = 'Deadlift')),
-    3, 3, false, null, 0.72, '[5,5,5,5]'::jsonb, null, 2),
-  -- Volume
-  ((select id from day_exercises where day_id = (select id from days where name = 'Volume') and exercise_id = (select id from exercises where name = 'Bench')),
-    5, 5, false, null, 0.770833, '[5,5,5,5]'::jsonb, null, 1),
-  ((select id from day_exercises where day_id = (select id from days where name = 'Volume') and exercise_id = (select id from exercises where name = 'Weighted Pull-up')),
-    6, 3, true, null, null, null,
-    '[{"week":1,"sets":3,"reps":6,"target_rpe":"RIR 3","note":null},{"week":2,"sets":4,"reps":6,"target_rpe":"RIR 2-3","note":null},{"week":3,"sets":5,"reps":6,"target_rpe":"RIR 2-3","note":null},{"week":4,"sets":4,"reps":6,"target_rpe":"RIR 2","note":"Last set to RIR 1"},{"week":5,"sets":2,"reps":5,"target_rpe":"RIR 3","note":"Deload"}]'::jsonb,
-    1),
-  ((select id from day_exercises where day_id = (select id from days where name = 'Volume') and exercise_id = (select id from exercises where name = 'Weighted Dip')),
-    5, 3, true, null, null, null, null, 1),
-  ((select id from day_exercises where day_id = (select id from days where name = 'Volume') and exercise_id = (select id from exercises where name = 'Chest-Supported Row')),
-    8, 2, true, null, null, null, null, 1),
-  -- Technique
-  ((select id from day_exercises where day_id = (select id from days where name = 'Technique') and exercise_id = (select id from exercises where name = 'Paused Bench')),
-    5, 4, false, null, 0.729167, '[5,5,5,5]'::jsonb, null, 1),
-  ((select id from day_exercises where day_id = (select id from days where name = 'Technique') and exercise_id = (select id from exercises where name = 'Pull-up')),
-    0, 0, true, null, null, null, null, 1),
-  ((select id from day_exercises where day_id = (select id from days where name = 'Technique') and exercise_id = (select id from exercises where name = 'Incline DB')),
-    8, 2, true, null, null, null, null, 1),
-  ((select id from day_exercises where day_id = (select id from days where name = 'Technique') and exercise_id = (select id from exercises where name = 'Chest-Supported Row')),
-    8, 2, true, null, null, null, null, 1);
-
--- RLS: enabled on every table. This app has no login (personal, single-user
--- tool), so policies are permissive for any request carrying the
--- publishable key -- the same key that ends up in the deployed PWA's JS
--- bundle. That means anyone who finds the deployed URL and inspects it
--- could read/write this data (workout logs, bodyweight). Acceptable for a
--- personal v1; revisit with Supabase Auth if that stops being acceptable.
+-- RLS: every table restricted to its own user_id via auth.uid(). A fresh
+-- install seeds no exercises/days/set_groups -- a brand-new account starts
+-- empty and uses the in-app "set up starter program" button
+-- (bootstrapStarterTemplate() in src/lib/api.ts) to get Connor's current
+-- Squat/Bench/Deadlift/Weighted Pull-up/Weighted Dip setup as an editable
+-- starting point.
 alter table programs enable row level security;
 alter table exercises enable row level security;
 alter table days enable row level security;
@@ -298,14 +209,14 @@ alter table calibrations enable row level security;
 alter table nutrition_logs enable row level security;
 alter table nutrition_goals enable row level security;
 
-create policy "public all programs" on programs for all using (true) with check (true);
-create policy "public all exercises" on exercises for all using (true) with check (true);
-create policy "public all days" on days for all using (true) with check (true);
-create policy "public all day_exercises" on day_exercises for all using (true) with check (true);
-create policy "public all set_groups" on set_groups for all using (true) with check (true);
-create policy "public all exercise_tests" on exercise_tests for all using (true) with check (true);
-create policy "public all weekly_targets" on weekly_targets for all using (true) with check (true);
-create policy "public all logged_sets" on logged_sets for all using (true) with check (true);
-create policy "public all calibrations" on calibrations for all using (true) with check (true);
-create policy "public all nutrition_logs" on nutrition_logs for all using (true) with check (true);
-create policy "public all nutrition_goals" on nutrition_goals for all using (true) with check (true);
+create policy "own rows" on programs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "own rows" on exercises for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "own rows" on days for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "own rows" on day_exercises for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "own rows" on set_groups for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "own rows" on exercise_tests for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "own rows" on weekly_targets for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "own rows" on logged_sets for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "own rows" on calibrations for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "own rows" on nutrition_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "own rows" on nutrition_goals for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

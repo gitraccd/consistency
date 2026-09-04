@@ -1,0 +1,25 @@
+-- Backfill template -- DO NOT run this file as-is.
+--
+-- 1. Run 2026-09-03_multi_tenancy_schema.sql first.
+-- 2. Sign up for a real account through the app's new sign-up screen.
+-- 3. In the SQL Editor, run: select id, email from auth.users;
+--    Copy your new account's id.
+-- 4. Copy this file's contents into a NEW query, replace every
+--    YOUR_USER_ID_HERE below with that id (keep the quotes), and run it.
+-- 5. Only then open the app again -- your existing programs, logs, and
+--    nutrition history will reappear, now scoped to your account.
+--
+-- Safe to run more than once (every WHERE clause only touches rows that
+-- still have no owner).
+
+update programs set user_id = 'YOUR_USER_ID_HERE' where user_id is null;
+update exercises set user_id = 'YOUR_USER_ID_HERE' where user_id is null;
+update days set user_id = 'YOUR_USER_ID_HERE' where user_id is null;
+update day_exercises set user_id = 'YOUR_USER_ID_HERE' where user_id is null;
+update set_groups set user_id = 'YOUR_USER_ID_HERE' where user_id is null;
+update exercise_tests set user_id = 'YOUR_USER_ID_HERE' where user_id is null;
+update weekly_targets set user_id = 'YOUR_USER_ID_HERE' where user_id is null;
+update logged_sets set user_id = 'YOUR_USER_ID_HERE' where user_id is null;
+update calibrations set user_id = 'YOUR_USER_ID_HERE' where user_id is null;
+update nutrition_logs set user_id = 'YOUR_USER_ID_HERE' where user_id is null;
+update nutrition_goals set user_id = 'YOUR_USER_ID_HERE' where user_id is null;

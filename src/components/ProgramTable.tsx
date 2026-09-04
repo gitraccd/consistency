@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import type { DayWithExercises, LoggedSet, Program, SetGroup, WeeklyTarget } from '../lib/api'
+import { ChevronDown, Settings } from 'lucide-react'
+import type { DayExerciseWithDetails, DayWithExercises, LoggedSet, Program, SetGroup, WeeklyTarget } from '../lib/api'
 import { weeklyPlanEntryFor, type WeekNumber } from '../lib/calc'
 import { scheduledDayName } from '../lib/schedule'
 
@@ -12,6 +13,139 @@ function targetFor(setGroup: SetGroup, week: WeekNumber, weeklyTargets: WeeklyTa
   return target ? String(target.target_weight) : null
 }
 
+function bestLogFor(loggedSets: LoggedSet[], setGroupId: string, week: WeekNumber): LoggedSet | null {
+  return loggedSets
+    .filter((s) => s.set_group_id === setGroupId && s.week_number === week)
+    .reduce<LoggedSet | null>((b, s) => (b === null || s.weight > b.weight ? s : b), null)
+}
+
+/** One set/rep scheme within an exercise -- collapsed shows this week's number, tap to reveal the full block. */
+function SetGroupRow({
+  setGroup,
+  currentWeek,
+  weeklyTargets,
+  loggedSets,
+  onCellClick,
+}: {
+  setGroup: SetGroup
+  currentWeek: WeekNumber
+  weeklyTargets: WeeklyTarget[]
+  loggedSets: LoggedSet[]
+  onCellClick: (setGroup: SetGroup, week: WeekNumber) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const currentPlan = weeklyPlanEntryFor(setGroup.weekly_plan, currentWeek)
+  const currentTarget = targetFor(setGroup, currentWeek, weeklyTargets)
+  const currentBest = bestLogFor(loggedSets, setGroup.id, currentWeek)
+
+  return (
+    <div className="rounded-lg bg-surface-2/60 p-3">
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full items-center justify-between gap-2 text-left"
+      >
+        <div className="min-w-0">
+          {(setGroup.num_sets > 0 || setGroup.intensity_note) && (
+            <div className="text-xs text-text-muted">
+              {setGroup.num_sets > 0 ? `${setGroup.num_sets}x${setGroup.reps}` : ''}
+              {setGroup.intensity_note ? ` · ${setGroup.intensity_note}` : ''}
+            </div>
+          )}
+          <div className="text-xs text-text-muted">This week</div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="text-right">
+            {currentPlan ? (
+              <div className="font-medium text-text">
+                {currentPlan.sets}x{currentPlan.reps}
+                {currentPlan.target_rpe ? ` @ ${currentPlan.target_rpe}` : ''}
+              </div>
+            ) : (
+              <div className={`font-medium ${currentTarget ? 'text-text' : 'text-text-muted/50'}`}>
+                {currentWeek === 6 ? 'Deload' : (currentTarget ?? '—')}
+              </div>
+            )}
+            {currentBest && (
+              <div className="text-xs text-success">
+                {currentBest.weight}x{currentBest.reps}
+              </div>
+            )}
+          </div>
+          <ChevronDown className={`h-4 w-4 shrink-0 text-text-muted transition-transform ${expanded ? 'rotate-180' : ''}`} />
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
+          {WEEKS.map((week) => {
+            const plan = weeklyPlanEntryFor(setGroup.weekly_plan, week)
+            const target = targetFor(setGroup, week, weeklyTargets)
+            const best = bestLogFor(loggedSets, setGroup.id, week)
+            return (
+              <button
+                key={week}
+                onClick={() => onCellClick(setGroup, week)}
+                className={`rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors active:scale-95 ${
+                  week === currentWeek ? 'bg-surface-2 ring-1 ring-border' : 'bg-surface'
+                }`}
+              >
+                <div className="text-text-muted">W{week}</div>
+                {plan ? (
+                  <div className="font-medium text-text">
+                    {plan.sets}x{plan.reps}
+                    {plan.target_rpe ? ` @ ${plan.target_rpe}` : ''}
+                  </div>
+                ) : (
+                  <div className={`font-medium ${target ? 'text-text' : 'text-text-muted/50'}`}>
+                    {week === 6 ? 'Deload' : (target ?? '—')}
+                  </div>
+                )}
+                {best && (
+                  <div className="text-success">
+                    {best.weight}x{best.reps}
+                  </div>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ExerciseCard({
+  dayExercise,
+  currentWeek,
+  weeklyTargets,
+  loggedSets,
+  onCellClick,
+}: {
+  dayExercise: DayExerciseWithDetails
+  currentWeek: WeekNumber
+  weeklyTargets: WeeklyTarget[]
+  loggedSets: LoggedSet[]
+  onCellClick: (setGroup: SetGroup, week: WeekNumber) => void
+}) {
+  return (
+    <div className="space-y-2 rounded-xl bg-surface p-4">
+      <div className="font-medium">{dayExercise.exercise.name}</div>
+      <div className="space-y-2">
+        {dayExercise.set_groups.map((sg) => (
+          <SetGroupRow
+            key={sg.id}
+            setGroup={sg}
+            currentWeek={currentWeek}
+            weeklyTargets={weeklyTargets}
+            loggedSets={loggedSets}
+            onCellClick={onCellClick}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function ProgramTable({
   program,
   template,
@@ -19,6 +153,7 @@ export function ProgramTable({
   weeklyTargets,
   loggedSets,
   onCellClick,
+  onManage,
 }: {
   program: Program
   template: DayWithExercises[]
@@ -26,22 +161,32 @@ export function ProgramTable({
   weeklyTargets: WeeklyTarget[]
   loggedSets: LoggedSet[]
   onCellClick: (setGroup: SetGroup, week: WeekNumber) => void
+  onManage: () => void
 }) {
   const [startYear, startMonth, startDay] = program.start_date.split('-')
   const formattedStart = `${startMonth}/${startDay}/${startYear}`
 
-  const todaysDay = scheduledDayName()
+  const todaysDay = scheduledDayName(template)
   const [selectedDayName, setSelectedDayName] = useState(todaysDay ?? template[0]?.name)
   const day = template.find((d) => d.name === selectedDayName) ?? template[0]
 
   return (
     <div className="page-enter mx-auto max-w-md space-y-6 p-4 pb-24">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Program</h1>
-        <p className="mt-1 text-sm text-text">
-          Week {currentWeek} of 6{currentWeek === 6 ? ' (Deload)' : ''}
-        </p>
-        <p className="text-xs text-text-muted">Started {formattedStart}</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Program</h1>
+          <p className="mt-1 text-sm text-text">
+            Week {currentWeek} of 6{currentWeek === 6 ? ' (Deload)' : ''}
+          </p>
+          <p className="text-xs text-text-muted">Started {formattedStart}</p>
+        </div>
+        <button
+          onClick={onManage}
+          aria-label="Manage program"
+          className="-m-2.5 flex h-11 w-11 shrink-0 items-center justify-center text-text-muted"
+        >
+          <Settings className="h-5 w-5" />
+        </button>
       </div>
 
       <div className="flex gap-2 overflow-x-auto">
@@ -67,84 +212,16 @@ export function ProgramTable({
 
       {day && (
         <div key={day.id} className="page-enter space-y-2">
-          <div className="relative overflow-hidden rounded-xl bg-surface">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[600px] border-collapse text-sm">
-                <thead>
-                  <tr>
-                    <th className="sticky left-0 z-10 min-w-[160px] bg-surface p-3 text-left font-medium text-text-muted">
-                      Exercise
-                    </th>
-                    {WEEKS.map((w) => (
-                      <th
-                        key={w}
-                        className={`p-3 text-center font-medium ${
-                          w === currentWeek ? 'border-b-2 border-text font-semibold text-text' : 'text-text-muted'
-                        }`}
-                      >
-                        W{w}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {day.day_exercises.map((de) =>
-                    de.set_groups.map((sg) => (
-                      <tr key={sg.id} className="border-t border-border">
-                        <td className="sticky left-0 z-10 bg-surface p-3 align-top">
-                          <div className="font-medium">{de.exercise.name}</div>
-                          {(sg.num_sets > 0 || sg.intensity_note) && (
-                            <div className="text-xs text-text-muted">
-                              {sg.num_sets > 0 ? `${sg.num_sets}x${sg.reps}` : ''}
-                              {sg.intensity_note ? ` · ${sg.intensity_note}` : ''}
-                            </div>
-                          )}
-                        </td>
-                        {WEEKS.map((week) => {
-                          const target = targetFor(sg, week, weeklyTargets)
-                          const plan = weeklyPlanEntryFor(sg.weekly_plan, week)
-                          const logs = loggedSets.filter((s) => s.set_group_id === sg.id && s.week_number === week)
-                          const best = logs.reduce<LoggedSet | null>(
-                            (b, s) => (b === null || s.weight > b.weight ? s : b),
-                            null,
-                          )
-                          return (
-                            <td
-                              key={week}
-                              onClick={() => onCellClick(sg, week)}
-                              className={`touch-manipulation cursor-pointer p-3 text-center transition-colors hover:bg-surface-2 active:bg-surface-2/80 ${
-                                week === currentWeek ? 'bg-surface-2' : ''
-                              }`}
-                            >
-                              {plan ? (
-                                <div className="text-text">
-                                  {plan.sets}x{plan.reps}
-                                  {plan.target_rpe ? ` @ ${plan.target_rpe}` : ''}
-                                </div>
-                              ) : (
-                                <div className={target ? 'text-text' : 'text-text-muted/50'}>
-                                  {week === 6 ? 'Deload' : (target ?? '—')}
-                                </div>
-                              )}
-                              {best && (
-                                <div className="text-xs text-success">
-                                  {best.weight}x{best.reps}
-                                </div>
-                              )}
-                            </td>
-                          )
-                        })}
-                      </tr>
-                    )),
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-surface to-transparent"
+          {day.day_exercises.map((de) => (
+            <ExerciseCard
+              key={de.id}
+              dayExercise={de}
+              currentWeek={currentWeek}
+              weeklyTargets={weeklyTargets}
+              loggedSets={loggedSets}
+              onCellClick={onCellClick}
             />
-          </div>
+          ))}
         </div>
       )}
     </div>

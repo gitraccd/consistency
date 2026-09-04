@@ -60,11 +60,13 @@ export interface Database {
       programs: {
         Row: {
           id: string
+          user_id: string | null
           start_date: string
           created_at: string
         }
         Insert: {
           id?: string
+          user_id?: string | null
           start_date: string
           created_at?: string
         }
@@ -74,6 +76,7 @@ export interface Database {
       exercises: {
         Row: {
           id: string
+          user_id: string | null
           name: string
           requires_test: boolean
           e1rm_source_exercise_id: string | null
@@ -81,6 +84,7 @@ export interface Database {
         }
         Insert: {
           id?: string
+          user_id?: string | null
           name: string
           requires_test?: boolean
           e1rm_source_exercise_id?: string | null
@@ -92,13 +96,17 @@ export interface Database {
       days: {
         Row: {
           id: string
+          user_id: string | null
           name: string
           sort_order: number
+          day_of_week: number | null
         }
         Insert: {
           id?: string
+          user_id?: string | null
           name: string
           sort_order?: number
+          day_of_week?: number | null
         }
         Update: Partial<Database['public']['Tables']['days']['Insert']>
         Relationships: []
@@ -106,12 +114,14 @@ export interface Database {
       day_exercises: {
         Row: {
           id: string
+          user_id: string | null
           day_id: string
           exercise_id: string
           sort_order: number
         }
         Insert: {
           id?: string
+          user_id?: string | null
           day_id: string
           exercise_id: string
           sort_order?: number
@@ -122,6 +132,7 @@ export interface Database {
       set_groups: {
         Row: {
           id: string
+          user_id: string | null
           day_exercise_id: string
           reps: number
           num_sets: number
@@ -131,9 +142,11 @@ export interface Database {
           increments: [number, number, number, number] | null
           weekly_plan: WeeklyPlanEntry[] | null
           sort_order: number
+          rest_seconds: number | null
         }
         Insert: {
           id?: string
+          user_id?: string | null
           day_exercise_id: string
           reps: number
           num_sets: number
@@ -143,6 +156,7 @@ export interface Database {
           increments?: [number, number, number, number] | null
           weekly_plan?: WeeklyPlanEntry[] | null
           sort_order?: number
+          rest_seconds?: number | null
         }
         Update: Partial<Database['public']['Tables']['set_groups']['Insert']>
         Relationships: [DayExerciseFk]
@@ -150,6 +164,7 @@ export interface Database {
       exercise_tests: {
         Row: {
           id: string
+          user_id: string | null
           program_id: string
           exercise_id: string
           mode: ExerciseTestMode
@@ -162,6 +177,7 @@ export interface Database {
         }
         Insert: {
           id?: string
+          user_id?: string | null
           program_id: string
           exercise_id: string
           mode: ExerciseTestMode
@@ -178,6 +194,7 @@ export interface Database {
       weekly_targets: {
         Row: {
           id: string
+          user_id: string | null
           program_id: string
           set_group_id: string
           week_number: number
@@ -186,6 +203,7 @@ export interface Database {
         }
         Insert: {
           id?: string
+          user_id?: string | null
           program_id: string
           set_group_id: string
           week_number: number
@@ -198,6 +216,7 @@ export interface Database {
       logged_sets: {
         Row: {
           id: string
+          user_id: string | null
           program_id: string
           set_group_id: string
           week_number: number
@@ -209,6 +228,7 @@ export interface Database {
         }
         Insert: {
           id?: string
+          user_id?: string | null
           program_id: string
           set_group_id: string
           week_number: number
@@ -224,6 +244,7 @@ export interface Database {
       calibrations: {
         Row: {
           id: string
+          user_id: string | null
           exercise_id: string
           correction_factor: number
           data_point_count: number
@@ -231,6 +252,7 @@ export interface Database {
         }
         Insert: {
           id?: string
+          user_id?: string | null
           exercise_id: string
           correction_factor?: number
           data_point_count?: number
@@ -242,6 +264,7 @@ export interface Database {
       nutrition_logs: {
         Row: {
           id: string
+          user_id: string | null
           log_date: string
           label: string | null
           calories: number | null
@@ -250,6 +273,7 @@ export interface Database {
         }
         Insert: {
           id?: string
+          user_id?: string | null
           log_date: string
           label?: string | null
           calories?: number | null
@@ -262,12 +286,14 @@ export interface Database {
       nutrition_goals: {
         Row: {
           id: string
+          user_id: string | null
           calories: number | null
           protein: number | null
           updated_at: string
         }
         Insert: {
-          id: string
+          id?: string
+          user_id?: string | null
           calories?: number | null
           protein?: number | null
           updated_at?: string

@@ -1,14 +1,12 @@
-/** Fixed weekday -> training day mapping (JS Date#getDay(): 0=Sun..6=Sat). */
-const WEEKDAY_SCHEDULE: Record<number, string> = {
-  1: 'Heavy', // Monday
-  4: 'Volume', // Thursday
-  5: 'Deadlift', // Friday
-  6: 'Technique', // Saturday
+/** A day with enough fields to resolve which one (if any) falls on a given date. */
+interface ScheduleDay {
+  name: string
+  day_of_week: number | null
 }
 
-/** Which training day (if any) is scheduled for the given date. */
-export function scheduledDayName(date: Date = new Date()): string | null {
-  return WEEKDAY_SCHEDULE[date.getDay()] ?? null
+/** Which training day (if any) is scheduled for the given date, per each day's day_of_week (JS Date#getDay(): 0=Sun..6=Sat). */
+export function scheduledDayName(days: ScheduleDay[], date: Date = new Date()): string | null {
+  return days.find((d) => d.day_of_week === date.getDay())?.name ?? null
 }
 
 /** YYYY-MM-DD in local time -- not toISOString(), which is UTC and can roll to the wrong calendar date near midnight. */

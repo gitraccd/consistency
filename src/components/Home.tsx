@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from 'react'
 import { ChevronRight, Plus } from 'lucide-react'
-import type { LoggedSet, NutritionLog, Program } from '../lib/api'
+import type { DayWithExercises, LoggedSet, NutritionLog, Program } from '../lib/api'
 import type { WeekNumber } from '../lib/calc'
 import { scheduledDayName, todayIsoDate } from '../lib/schedule'
 
@@ -12,8 +12,12 @@ interface ConsistencyDay {
   isToday: boolean
 }
 
-/** One row per program week, one dot per calendar day, aligned to the fixed weekday training schedule. */
-function buildConsistencyWeeks(startDate: string, loggedSets: LoggedSet[]): ConsistencyDay[][] {
+/** One row per program week, one dot per calendar day, aligned to the weekday training schedule. */
+function buildConsistencyWeeks(
+  startDate: string,
+  loggedSets: LoggedSet[],
+  template: DayWithExercises[],
+): ConsistencyDay[][] {
   const loggedDates = new Set(loggedSets.map((s) => todayIsoDate(new Date(s.logged_at))))
   const today = todayIsoDate()
   const start = new Date(startDate + 'T00:00:00')
@@ -27,7 +31,7 @@ function buildConsistencyWeeks(startDate: string, loggedSets: LoggedSet[]): Cons
       const iso = todayIsoDate(date)
       week.push({
         date: iso,
-        isTrainingDay: scheduledDayName(date) != null,
+        isTrainingDay: scheduledDayName(template, date) != null,
         hasLog: loggedDates.has(iso),
         isFuture: iso > today,
         isToday: iso === today,
@@ -104,6 +108,7 @@ function WeekRing({ week }: { week: WeekNumber }) {
 
 export function Home({
   program,
+  template,
   currentWeek,
   loggedSets,
   todaysNutritionLogs,
@@ -112,6 +117,7 @@ export function Home({
   onNewProgram,
 }: {
   program: Program | null
+  template: DayWithExercises[]
   currentWeek: WeekNumber
   loggedSets: LoggedSet[]
   todaysNutritionLogs: NutritionLog[]
@@ -121,7 +127,7 @@ export function Home({
 }) {
   const weekLogs = program ? loggedSets.filter((s) => s.week_number === currentWeek) : []
   const volumeLifted = weekLogs.reduce((sum, s) => sum + s.weight * s.reps, 0)
-  const todaysDay = scheduledDayName()
+  const todaysDay = scheduledDayName(template)
   const canLogToday = program != null && todaysDay != null
   const todaysCalories = todaysNutritionLogs.reduce((sum, log) => sum + (log.calories ?? 0), 0)
   const todaysProtein = todaysNutritionLogs.reduce((sum, log) => sum + (log.protein ?? 0), 0)
@@ -184,7 +190,7 @@ export function Home({
 
           <div className="mb-4 border-y border-border py-4">
             <p className="mb-3 text-xs font-medium uppercase tracking-wide text-text-muted">Consistency</p>
-            <ConsistencyGrid weeks={buildConsistencyWeeks(program.start_date, loggedSets)} />
+            <ConsistencyGrid weeks={buildConsistencyWeeks(program.start_date, loggedSets, template)} />
           </div>
 
           <div className="flex items-center justify-between rounded-2xl bg-surface p-4">

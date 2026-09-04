@@ -1,6 +1,7 @@
+import { Pencil } from 'lucide-react'
 import { useState } from 'react'
-import { deleteLoggedSet, insertLoggedSet, type LoggedSet, type SetGroup } from '../lib/api'
-import type { WeekNumber } from '../lib/calc'
+import { deleteLoggedSet, errorMessage, insertLoggedSet, upsertWeeklyTarget, type LoggedSet, type SetGroup } from '../lib/api'
+import type { TargetWeek, WeekNumber } from '../lib/calc'
 
 export function LogPopover({
   programId,
@@ -10,6 +11,7 @@ export function LogPopover({
   targetWeight,
   existingLogs,
   onLogged,
+  onSetAdded,
   onClose,
 }: {
   programId: string
@@ -18,7 +20,10 @@ export function LogPopover({
   label: string
   targetWeight: string | null
   existingLogs: LoggedSet[]
+  /** Data changed (target edited or a log deleted) -- refresh, but this isn't a new set, so no rest timer. */
   onLogged: () => void
+  /** A new set was actually logged -- refresh AND start the rest timer, using this set-group's rest override if it has one. */
+  onSetAdded: (setGroup: SetGroup) => void
   onClose: () => void
 }) {
   const [weight, setWeight] = useState(targetWeight ?? '')
@@ -30,6 +35,26 @@ export function LogPopover({
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  const canEditTarget = week !== 6 && !setGroup.is_freeform
+  const [editingTarget, setEditingTarget] = useState(false)
+  const [targetInput, setTargetInput] = useState(targetWeight ?? '')
+  const [savingTarget, setSavingTarget] = useState(false)
+
+  async function handleSaveTarget() {
+    if (targetInput === '') return
+    setSavingTarget(true)
+    setError(null)
+    try {
+      await upsertWeeklyTarget(programId, setGroup.id, week as TargetWeek, Number(targetInput))
+      setEditingTarget(false)
+      onLogged()
+    } catch (e) {
+      setError(errorMessage(e))
+    } finally {
+      setSavingTarget(false)
+    }
+  }
+
   const valid = weight !== '' && reps !== ''
 
   async function handleDelete(id: string) {
@@ -39,7 +64,7 @@ export function LogPopover({
       await deleteLoggedSet(id)
       onLogged()
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(errorMessage(e))
     } finally {
       setDeletingId(null)
     }
@@ -61,9 +86,9 @@ export function LogPopover({
       })
       setRpe('')
       setIsMaxEffort(false)
-      onLogged()
+      onSetAdded(setGroup)
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(errorMessage(e))
     } finally {
       setSubmitting(false)
     }
@@ -78,10 +103,47 @@ export function LogPopover({
         <div className="flex items-start justify-between">
           <div>
             <h2 className="font-semibold">{label}</h2>
-            <p className="text-sm text-text-muted">
-              Week {week}
-              {targetWeight ? ` · target ${targetWeight} lb` : ''}
-            </p>
+            {!editingTarget ? (
+              <p className="flex items-center gap-1.5 text-sm text-text-muted">
+                <span>
+                  Week {week}
+                  {targetWeight ? ` · target ${targetWeight} lb` : ''}
+                </span>
+                {canEditTarget && (
+                  <button
+                    onClick={() => {
+                      setTargetInput(targetWeight ?? '')
+                      setEditingTarget(true)
+                    }}
+                    aria-label="Edit target weight"
+                    className="-m-1.5 flex h-8 w-8 shrink-0 items-center justify-center text-text-muted"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </p>
+            ) : (
+              <div className="mt-1 flex items-center gap-2">
+                <input
+                  autoFocus
+                  type="number"
+                  inputMode="decimal"
+                  value={targetInput}
+                  onChange={(e) => setTargetInput(e.target.value)}
+                  className="w-20 rounded-lg bg-surface-2 px-2 py-1 text-sm"
+                />
+                <button
+                  onClick={handleSaveTarget}
+                  disabled={targetInput === '' || savingTarget}
+                  className="rounded-lg bg-accent px-2.5 py-1 text-sm font-medium text-accent-text disabled:opacity-40"
+                >
+                  Save
+                </button>
+                <button onClick={() => setEditingTarget(false)} className="text-sm text-text-muted">
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
           <button
             onClick={onClose}
