@@ -3,26 +3,34 @@ import { errorMessage } from '../lib/api'
 import { supabase } from '../lib/supabase'
 
 export function Auth() {
-  const [mode, setMode] = useState<'signup' | 'login'>('login')
+  const [mode, setMode] = useState<'signup' | 'login' | 'forgot'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [signedUpNotice, setSignedUpNotice] = useState(false)
+  const [resetSentNotice, setResetSentNotice] = useState(false)
 
-  const valid = email.trim() !== '' && password.length >= 6
+  const valid = mode === 'forgot' ? email.trim() !== '' : email.trim() !== '' && password.length >= 6
 
   async function handleSubmit() {
     if (!valid) return
     setSubmitting(true)
     setError(null)
     setSignedUpNotice(false)
+    setResetSentNotice(false)
     try {
       if (mode === 'signup') {
         const { data, error } = await supabase.auth.signUp({ email: email.trim(), password })
         if (error) throw error
         // If email confirmation is required, there's no session yet -- let them know to check their inbox.
         if (!data.session) setSignedUpNotice(true)
+      } else if (mode === 'forgot') {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: window.location.origin,
+        })
+        if (error) throw error
+        setResetSentNotice(true)
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
         if (error) throw error
@@ -43,24 +51,28 @@ export function Auth() {
         </div>
 
         <div className="space-y-3 rounded-xl bg-surface p-4">
-          <div className="flex gap-2">
-            <button
-              onClick={() => setMode('login')}
-              className={`flex-1 rounded-lg py-2 text-sm font-medium transition-transform active:scale-95 ${
-                mode === 'login' ? 'bg-text text-bg' : 'bg-surface-2 text-text-muted'
-              }`}
-            >
-              Log in
-            </button>
-            <button
-              onClick={() => setMode('signup')}
-              className={`flex-1 rounded-lg py-2 text-sm font-medium transition-transform active:scale-95 ${
-                mode === 'signup' ? 'bg-text text-bg' : 'bg-surface-2 text-text-muted'
-              }`}
-            >
-              Sign up
-            </button>
-          </div>
+          {mode !== 'forgot' && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => setMode('login')}
+                className={`flex-1 rounded-lg py-2 text-sm font-medium transition-transform active:scale-95 ${
+                  mode === 'login' ? 'bg-text text-bg' : 'bg-surface-2 text-text-muted'
+                }`}
+              >
+                Log in
+              </button>
+              <button
+                onClick={() => setMode('signup')}
+                className={`flex-1 rounded-lg py-2 text-sm font-medium transition-transform active:scale-95 ${
+                  mode === 'signup' ? 'bg-text text-bg' : 'bg-surface-2 text-text-muted'
+                }`}
+              >
+                Sign up
+              </button>
+            </div>
+          )}
+
+          {mode === 'forgot' && <p className="text-sm text-text-muted">Enter your email and we'll send a reset link.</p>}
 
           <label className="block space-y-1">
             <span className="text-sm text-text-muted">Email</span>
@@ -73,23 +85,39 @@ export function Auth() {
             />
           </label>
 
-          <label className="block space-y-1">
-            <span className="text-sm text-text-muted">Password</span>
-            <input
-              type="password"
-              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg bg-surface-2 px-3 py-2 text-lg"
-            />
-            {mode === 'signup' && password !== '' && password.length < 6 && (
-              <span className="text-xs text-text-muted">At least 6 characters</span>
-            )}
-          </label>
+          {mode !== 'forgot' && (
+            <label className="block space-y-1">
+              <span className="text-sm text-text-muted">Password</span>
+              <input
+                type="password"
+                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-lg bg-surface-2 px-3 py-2 text-lg"
+              />
+              {mode === 'signup' && password !== '' && password.length < 6 && (
+                <span className="text-xs text-text-muted">At least 6 characters</span>
+              )}
+            </label>
+          )}
+
+          {mode === 'login' && (
+            <button onClick={() => setMode('forgot')} className="text-sm text-text-muted underline">
+              Forgot password?
+            </button>
+          )}
+          {mode === 'forgot' && (
+            <button onClick={() => setMode('login')} className="text-sm text-text-muted underline">
+              Back to log in
+            </button>
+          )}
 
           {error && <p className="text-sm text-danger">{error}</p>}
           {signedUpNotice && (
             <p className="text-sm text-success">Account created — check your email to confirm before logging in.</p>
+          )}
+          {resetSentNotice && (
+            <p className="text-sm text-success">If that email has an account, a reset link is on its way.</p>
           )}
 
           <button
@@ -97,7 +125,7 @@ export function Auth() {
             disabled={!valid || submitting}
             className="w-full rounded-xl bg-accent py-3 font-medium text-accent-text transition-transform active:scale-[0.98] disabled:opacity-40"
           >
-            {submitting ? 'Please wait…' : mode === 'signup' ? 'Create account' : 'Log in'}
+            {submitting ? 'Please wait…' : mode === 'signup' ? 'Create account' : mode === 'forgot' ? 'Send reset link' : 'Log in'}
           </button>
         </div>
       </div>
