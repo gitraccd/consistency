@@ -37,6 +37,7 @@ import { LiftTracker } from './components/LiftTracker'
 import { History } from './components/History'
 import { RestTimer } from './components/RestTimer'
 import { BottomNav, type NavView } from './components/BottomNav'
+import { supabase } from './lib/supabase'
 
 interface AppData {
   template: DayWithExercises[]
@@ -213,6 +214,9 @@ export default function App() {
         >
           {bootstrapping ? 'Setting up…' : 'Set up starter program'}
         </button>
+        <button onClick={() => supabase.auth.signOut()} className="text-sm text-text-muted underline">
+          Sign out
+        </button>
       </div>
     )
   }
@@ -276,7 +280,12 @@ export default function App() {
             onManage={() => setShowManageTemplate(true)}
           />
         ) : (
-          <div className="p-4 text-text-muted">No active block yet — create one from Home.</div>
+          <div className="space-y-3 p-4">
+            <p className="text-text-muted">No active block yet — create one from Home.</p>
+            <button onClick={() => supabase.auth.signOut()} className="text-sm text-text-muted underline">
+              Sign out
+            </button>
+          </div>
         ))}
 
       {view === 'lift-tracker' &&
