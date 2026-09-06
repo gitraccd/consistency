@@ -179,7 +179,7 @@ export default function App() {
 
   if (data.template.length === 0) {
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 p-6 text-center">
+      <div className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-4 p-6 text-center">
         <div>
           <h1 className="text-xl font-semibold">Welcome to Consistency</h1>
           <p className="mt-2 text-sm text-text-muted">
