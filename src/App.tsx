@@ -126,6 +126,7 @@ export default function App() {
   const [bootstrapError, setBootstrapError] = useState<string | null>(null)
 
   function refresh() {
+    setError(null)
     loadData()
       .then((d) => {
         setData(d)
@@ -161,8 +162,17 @@ export default function App() {
 
   if (error) {
     return (
-      <div className="p-4 text-danger">
-        <p>Failed to load: {error}</p>
+      <div className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-4 p-6 text-center">
+        <div>
+          <h1 className="text-xl font-semibold">Something went wrong</h1>
+          <p className="mt-2 text-sm text-danger">{error}</p>
+        </div>
+        <button
+          onClick={refresh}
+          className="rounded-xl bg-accent px-6 py-3 font-medium text-accent-text transition-transform active:scale-[0.98]"
+        >
+          Try again
+        </button>
       </div>
     )
   }
