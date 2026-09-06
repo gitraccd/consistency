@@ -5,6 +5,7 @@ export function BottomNav({ active, onNavigate }: { active: NavView; onNavigate:
     { view: 'home', label: 'Home' },
     { view: 'program', label: 'Program' },
     { view: 'history', label: 'History' },
+    { view: 'nutrition', label: 'Nutrition' },
   ]
 
   return (
