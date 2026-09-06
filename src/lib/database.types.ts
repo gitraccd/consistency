@@ -139,6 +139,7 @@ export interface Database {
           is_freeform: boolean
           intensity_note: string | null
           week1_percentage: number | null
+          week1_offset: number | null
           increments: [number, number, number, number] | null
           weekly_plan: WeeklyPlanEntry[] | null
           sort_order: number
@@ -153,6 +154,7 @@ export interface Database {
           is_freeform?: boolean
           intensity_note?: string | null
           week1_percentage?: number | null
+          week1_offset?: number | null
           increments?: [number, number, number, number] | null
           weekly_plan?: WeeklyPlanEntry[] | null
           sort_order?: number

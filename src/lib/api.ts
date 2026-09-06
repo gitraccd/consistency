@@ -201,6 +201,8 @@ export interface SetGroupInput {
   isFreeform: boolean
   intensityNote: string | null
   week1Percentage: number | null
+  /** Flat lb offset from the tested E1RM (week1 weight = e1rm + week1Offset) -- an alternative to week1Percentage for fixed-increment progressions. Mutually exclusive with week1Percentage. */
+  week1Offset?: number | null
   increments: [number, number, number, number] | null
   sortOrder: number
   /** Rest-timer override in seconds; null = use the app-wide default. */
@@ -219,6 +221,7 @@ export async function createSetGroup(input: SetGroupInput): Promise<SetGroup> {
       is_freeform: input.isFreeform,
       intensity_note: input.intensityNote,
       week1_percentage: input.week1Percentage,
+      week1_offset: input.week1Offset ?? null,
       increments: input.increments,
       sort_order: input.sortOrder,
       rest_seconds: input.restSeconds,
@@ -491,7 +494,8 @@ export async function createProgram(startDate: string, plans: ExerciseTestPlan[]
 
   const targetRows: Database['public']['Tables']['weekly_targets']['Insert'][] = []
   for (const sg of setGroups as unknown as SetGroupWithSourceExercise[]) {
-    if (sg.is_freeform || sg.week1_percentage == null || sg.increments == null) continue
+    if (sg.is_freeform || sg.increments == null) continue
+    if (sg.week1_percentage == null && sg.week1_offset == null) continue
 
     const exercise = sg.day_exercise.exercise
     const sourceExerciseId = exercise.requires_test ? exercise.id : exercise.e1rm_source_exercise_id
@@ -500,7 +504,7 @@ export async function createProgram(startDate: string, plans: ExerciseTestPlan[]
     const e1rm = e1rmByExerciseId.get(sourceExerciseId)
     if (e1rm == null) continue
 
-    const week1Weight = e1rm * sg.week1_percentage
+    const week1Weight = sg.week1_percentage != null ? e1rm * sg.week1_percentage : e1rm + sg.week1_offset!
     const targets = computeWeeklyTargets(week1Weight, sg.increments)
     for (const [week, weight] of Object.entries(targets)) {
       targetRows.push({
@@ -745,17 +749,11 @@ export async function bootstrapStarterTemplate(): Promise<void> {
     ...base(volumePullup.id, 1),
     reps: 6,
     numSets: 3,
-    isFreeform: true,
+    isFreeform: false,
     intensityNote: null,
     week1Percentage: null,
-    increments: noIncrements,
-    weeklyPlan: [
-      { week: 1, sets: 3, reps: 6, target_rpe: 'RIR 3', note: null },
-      { week: 2, sets: 4, reps: 6, target_rpe: 'RIR 2-3', note: null },
-      { week: 3, sets: 5, reps: 6, target_rpe: 'RIR 2-3', note: null },
-      { week: 4, sets: 4, reps: 6, target_rpe: 'RIR 2', note: 'Last set to RIR 1' },
-      { week: 5, sets: 2, reps: 5, target_rpe: 'RIR 3', note: 'Deload' },
-    ],
+    week1Offset: -20,
+    increments: [2, 2, 3, 3],
   })
   await createSetGroup({ ...base(volumeDip.id, 0), reps: 1, numSets: 1, isFreeform: false, intensityNote: null, week1Percentage: 0.8, increments: [3, 3, 4, 5] })
   await createSetGroup({ ...base(volumeDip.id, 1), reps: 3, numSets: 3, isFreeform: false, intensityNote: null, week1Percentage: 0.72, increments: [2, 2, 3, 3] })

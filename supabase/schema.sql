@@ -100,6 +100,11 @@ create table set_groups (
   is_freeform boolean not null default false,
   intensity_note text,
   week1_percentage numeric,
+  -- Flat lb offset from the tested E1RM (week1 weight = e1rm + week1_offset,
+  -- typically negative) -- an alternative to week1_percentage for
+  -- progressions that add a fixed weekly increment rather than scaling with
+  -- %E1RM. Mutually exclusive with week1_percentage.
+  week1_offset numeric,
   increments jsonb,
   weekly_plan jsonb,
   sort_order int not null default 0,
