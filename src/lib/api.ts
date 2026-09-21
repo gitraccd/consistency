@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import {
   CALIBRATION_TRUST_THRESHOLD,
+  PROGRESSIVE_OVERLOAD_FACTOR,
   computeWeeklyTargets,
   resolveExerciseE1RM,
   rpeBased1RM,
@@ -538,11 +539,11 @@ export async function createProgram(startDate: string, plans: ExerciseTestPlan[]
       .maybeSingle()
     if (calibrationError) throw calibrationError
 
-    const appliedE1rm =
+    const calibratedE1rm =
       calibration && calibration.data_point_count >= CALIBRATION_TRUST_THRESHOLD
         ? computedE1rm * calibration.correction_factor
         : computedE1rm
-    e1rmByExerciseId.set(plan.exerciseId, appliedE1rm)
+    e1rmByExerciseId.set(plan.exerciseId, calibratedE1rm * PROGRESSIVE_OVERLOAD_FACTOR)
   }
 
   const { data: setGroups, error: sgError } = await supabase

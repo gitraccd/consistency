@@ -1,7 +1,13 @@
 import { useState, type FormEvent } from 'react'
 import type { DayWithExercises, Exercise, ExerciseTestPlan, Program } from '../lib/api'
 import { createProgram, errorMessage } from '../lib/api'
-import { resolveExerciseE1RM, computeWeeklyTargets, type TargetWeek } from '../lib/calc'
+import {
+  resolveExerciseE1RM,
+  computeWeeklyTargets,
+  roundToIncrement,
+  PROGRESSIVE_OVERLOAD_FACTOR,
+  type TargetWeek,
+} from '../lib/calc'
 import type { ExerciseTestMode } from '../lib/database.types'
 import { isoDateDaysAgo, todayIsoDate } from '../lib/schedule'
 
@@ -178,7 +184,9 @@ export function NewProgramFlow({
           if (plan) {
             try {
               e1rm = resolveExerciseE1RM(plan.input)
-              previewRows = computePreview(exercise.id, e1rm)
+              // Matches createProgram's own overload bump -- see PROGRESSIVE_OVERLOAD_FACTOR --
+              // so this preview shows the same numbers the block will actually be created with.
+              previewRows = computePreview(exercise.id, e1rm * PROGRESSIVE_OVERLOAD_FACTOR)
             } catch {
               e1rm = null
             }
@@ -279,7 +287,13 @@ export function NewProgramFlow({
 
                   {e1rm != null && (
                     <div className="space-y-2 rounded-lg bg-surface-2/60 p-3 text-sm text-text-muted">
-                      <div>E1RM: {e1rm.toFixed(1)} lb</div>
+                      <div>
+                        E1RM: {roundToIncrement(e1rm)} lb
+                        <span className="text-xs">
+                          {' '}
+                          (targets below include +{Math.round((PROGRESSIVE_OVERLOAD_FACTOR - 1) * 100)}% overload)
+                        </span>
+                      </div>
                       {previewRows.map((row, i) => (
                         <div key={i} className="border-t border-border pt-2 first:border-0 first:pt-0">
                           <div className="text-text-muted">

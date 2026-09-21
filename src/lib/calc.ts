@@ -2,6 +2,16 @@ import type { ExerciseTestMode, WeeklyPlanEntry } from './database.types'
 
 export const PLATE_INCREMENT = 5
 
+/**
+ * Block-to-block progressive overload: a new block's targets are generated
+ * from the tested (and calibration-corrected) E1RM times this factor, so
+ * re-testing the same weight/reps/RPE as last block still produces a
+ * program that asks for a bit more than last time -- overload has to be
+ * built into the programming, since nothing else here would push weights up
+ * for a lifter whose test matches their previous test exactly.
+ */
+export const PROGRESSIVE_OVERLOAD_FACTOR = 1.025
+
 /** Any loggable week, including the unprogrammed deload week. */
 export type WeekNumber = 1 | 2 | 3 | 4 | 5 | 6
 
