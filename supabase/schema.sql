@@ -53,13 +53,18 @@ create table programs (
 -- "Paused Bench") borrow another exercise's tested E1RM instead of needing
 -- its own test. requires_test=true means this exercise gets its own
 -- exercise_tests entry each program.
+-- unique(user_id, name) backstops bootstrapStarterTemplate()'s
+-- getOrCreate-by-name upsert -- without it, a retried/overlapping bootstrap
+-- call can silently create duplicate rows instead of reusing the existing
+-- one (this bit us in production once; see the 2026-09-21 cleanup).
 create table exercises (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) default auth.uid(),
   name text not null,
   requires_test boolean not null default false,
   e1rm_source_exercise_id uuid references exercises(id),
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  unique (user_id, name)
 );
 
 -- Heavy / Volume / Technique -- the fixed weekly training-day split.
@@ -70,17 +75,20 @@ create table days (
   user_id uuid references auth.users(id) default auth.uid(),
   name text not null,
   sort_order int not null default 0,
-  day_of_week int
+  day_of_week int,
+  unique (user_id, name)
 );
 
 -- Which exercises appear on which day, and in what order. The same
--- exercise (e.g. Bench) can appear under multiple days as separate rows.
+-- exercise (e.g. Bench) can appear under multiple days as separate rows --
+-- but not twice within the SAME day (unique below; see upsertDayExercise).
 create table day_exercises (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) default auth.uid(),
   day_id uuid not null references days(id) on delete cascade,
   exercise_id uuid not null references exercises(id),
-  sort_order int not null default 0
+  sort_order int not null default 0,
+  unique (day_id, exercise_id)
 );
 
 -- The atomic loggable unit: one rep/set scheme within a day_exercise.

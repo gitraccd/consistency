@@ -114,6 +114,33 @@ export async function createExercise(input: ExerciseInput): Promise<Exercise> {
     })
     .select()
     .single()
+  if (error) {
+    if (error.code === '23505') throw new Error(`An exercise named "${input.name}" already exists.`)
+    throw error
+  }
+  if (input.requiresTest) await ensureCalibration(data.id)
+  return data
+}
+
+/**
+ * Idempotent alternative to createExercise for bootstrapStarterTemplate --
+ * upserts on the (user_id, name) unique constraint instead of a plain
+ * insert, so a retried/overlapping bootstrap run reuses the same row
+ * instead of erroring or duplicating (see schema.sql's exercises_user_id_name_key).
+ */
+async function upsertExercise(input: ExerciseInput): Promise<Exercise> {
+  const { data, error } = await supabase
+    .from('exercises')
+    .upsert(
+      {
+        name: input.name,
+        requires_test: input.requiresTest,
+        e1rm_source_exercise_id: input.e1rmSourceExerciseId,
+      },
+      { onConflict: 'user_id,name' },
+    )
+    .select()
+    .single()
   if (error) throw error
   if (input.requiresTest) await ensureCalibration(data.id)
   return data
@@ -155,6 +182,23 @@ export async function createDay(input: DayInput): Promise<Day> {
     .insert({ name: input.name, sort_order: input.sortOrder, day_of_week: input.dayOfWeek })
     .select()
     .single()
+  if (error) {
+    if (error.code === '23505') throw new Error(`A day named "${input.name}" already exists.`)
+    throw error
+  }
+  return data
+}
+
+/** Idempotent alternative to createDay for bootstrapStarterTemplate -- see upsertExercise. */
+async function upsertDay(input: DayInput): Promise<Day> {
+  const { data, error } = await supabase
+    .from('days')
+    .upsert(
+      { name: input.name, sort_order: input.sortOrder, day_of_week: input.dayOfWeek },
+      { onConflict: 'user_id,name' },
+    )
+    .select()
+    .single()
   if (error) throw error
   return data
 }
@@ -177,6 +221,20 @@ export async function createDayExercise(dayId: string, exerciseId: string, sortO
   const { data, error } = await supabase
     .from('day_exercises')
     .insert({ day_id: dayId, exercise_id: exerciseId, sort_order: sortOrder })
+    .select()
+    .single()
+  if (error) {
+    if (error.code === '23505') throw new Error('This exercise is already in this day.')
+    throw error
+  }
+  return data
+}
+
+/** Idempotent alternative to createDayExercise for bootstrapStarterTemplate -- see upsertExercise. */
+async function upsertDayExercise(dayId: string, exerciseId: string, sortOrder: number): Promise<DayExercise> {
+  const { data, error } = await supabase
+    .from('day_exercises')
+    .upsert({ day_id: dayId, exercise_id: exerciseId, sort_order: sortOrder }, { onConflict: 'day_id,exercise_id' })
     .select()
     .single()
   if (error) throw error
@@ -651,78 +709,68 @@ function unwrap<T>({ data, error }: { data: T | null; error: { message: string }
  * be schema.sql's seed inserts, moved here once exercises/days/set_groups
  * became per-user rows a plain SQL seed can't target.
  *
- * Idempotent for exercises/days: reuses an existing row by name instead of
- * inserting a duplicate, so retrying after a partial failure (this function
- * isn't transactional -- it's a plain sequence of inserts) doesn't pile up
- * duplicates. day_exercises/set_groups aren't de-duped -- they're only ever
- * reached after every exercise and day already succeeded.
+ * Idempotent for exercises/days: upserts on the (user_id, name) unique
+ * constraint (see schema.sql) instead of inserting, so retrying after a
+ * partial failure (this function isn't transactional -- it's a plain
+ * sequence of inserts) reuses the same rows rather than duplicating them --
+ * this used to rely on an in-memory "does a row with this name already
+ * exist" check that a retried/overlapping call could race past; the DB
+ * constraint is the actual backstop now. day_exercises are upserted on
+ * (day_id, exercise_id) for the same reason. set_groups still aren't
+ * de-duped, so a fresh build (the count check below) is guarded to only run
+ * once -- a retry against an account whose template already has
+ * day_exercises is a no-op rather than risking duplicate set_groups.
  */
 export async function bootstrapStarterTemplate(): Promise<void> {
-  const existingExercises = await fetchAllExercises()
-  const existingDays = await fetchTemplate()
-
-  async function getOrCreateExercise(input: ExerciseInput): Promise<Exercise> {
-    const existing = existingExercises.find((e) => e.name === input.name)
-    if (existing) return existing
-    const created = await createExercise(input)
-    existingExercises.push(created)
-    return created
-  }
-
-  async function getOrCreateDay(input: DayInput): Promise<Day> {
-    const existing = existingDays.find((d) => d.name === input.name)
-    if (existing) return existing
-    const created = await createDay(input)
-    existingDays.push({ ...created, day_exercises: [] })
-    return created
-  }
-
-  const bench = await getOrCreateExercise({ name: 'Bench', requiresTest: true, e1rmSourceExerciseId: null })
-  const pausedBench = await getOrCreateExercise({
+  const bench = await upsertExercise({ name: 'Bench', requiresTest: true, e1rmSourceExerciseId: null })
+  const pausedBench = await upsertExercise({
     name: 'Paused Bench',
     requiresTest: false,
     e1rmSourceExerciseId: bench.id,
   })
-  const deadlift = await getOrCreateExercise({ name: 'Deadlift', requiresTest: true, e1rmSourceExerciseId: null })
-  const squat = await getOrCreateExercise({ name: 'Squat', requiresTest: true, e1rmSourceExerciseId: null })
-  const weightedPullup = await getOrCreateExercise({
+  const deadlift = await upsertExercise({ name: 'Deadlift', requiresTest: true, e1rmSourceExerciseId: null })
+  const squat = await upsertExercise({ name: 'Squat', requiresTest: true, e1rmSourceExerciseId: null })
+  const weightedPullup = await upsertExercise({
     name: 'Weighted Pull-up',
     requiresTest: true,
     e1rmSourceExerciseId: null,
   })
-  const pullup = await getOrCreateExercise({ name: 'Pull-up', requiresTest: false, e1rmSourceExerciseId: null })
-  const inclineDb = await getOrCreateExercise({ name: 'Incline DB', requiresTest: false, e1rmSourceExerciseId: null })
-  const chestSupportedRow = await getOrCreateExercise({
+  const pullup = await upsertExercise({ name: 'Pull-up', requiresTest: false, e1rmSourceExerciseId: null })
+  const inclineDb = await upsertExercise({ name: 'Incline DB', requiresTest: false, e1rmSourceExerciseId: null })
+  const chestSupportedRow = await upsertExercise({
     name: 'Chest-Supported Row',
     requiresTest: false,
     e1rmSourceExerciseId: null,
   })
-  const weightedDip = await getOrCreateExercise({ name: 'Weighted Dip', requiresTest: true, e1rmSourceExerciseId: null })
+  const weightedDip = await upsertExercise({ name: 'Weighted Dip', requiresTest: true, e1rmSourceExerciseId: null })
 
-  for (const ex of [bench, deadlift, squat, weightedPullup, weightedDip]) {
-    await ensureCalibration(ex.id)
-  }
+  const heavy = await upsertDay({ name: 'Heavy', sortOrder: 1, dayOfWeek: 1 })
+  const volume = await upsertDay({ name: 'Volume', sortOrder: 2, dayOfWeek: 4 })
+  const deadliftDay = await upsertDay({ name: 'Deadlift', sortOrder: 3, dayOfWeek: 5 })
+  const technique = await upsertDay({ name: 'Technique', sortOrder: 4, dayOfWeek: 6 })
+  const squatDay = await upsertDay({ name: 'Squat', sortOrder: 5, dayOfWeek: null })
 
-  const heavy = await getOrCreateDay({ name: 'Heavy', sortOrder: 1, dayOfWeek: 1 })
-  const volume = await getOrCreateDay({ name: 'Volume', sortOrder: 2, dayOfWeek: 4 })
-  const deadliftDay = await getOrCreateDay({ name: 'Deadlift', sortOrder: 3, dayOfWeek: 5 })
-  const technique = await getOrCreateDay({ name: 'Technique', sortOrder: 4, dayOfWeek: 6 })
-  const squatDay = await getOrCreateDay({ name: 'Squat', sortOrder: 5, dayOfWeek: null })
+  const { count: existingDayExerciseCount, error: countError } = await supabase
+    .from('day_exercises')
+    .select('id', { count: 'exact', head: true })
+    .eq('day_id', heavy.id)
+  if (countError) throw countError
+  if (existingDayExerciseCount && existingDayExerciseCount > 0) return
 
-  const heavyBench = await createDayExercise(heavy.id, bench.id, 1)
-  const heavyPullup = await createDayExercise(heavy.id, weightedPullup.id, 2)
-  const heavyInclineDb = await createDayExercise(heavy.id, inclineDb.id, 3)
-  const heavyRow = await createDayExercise(heavy.id, chestSupportedRow.id, 4)
-  const deadliftDe = await createDayExercise(deadliftDay.id, deadlift.id, 1)
-  const squatDe = await createDayExercise(squatDay.id, squat.id, 1)
-  const volumeBench = await createDayExercise(volume.id, bench.id, 1)
-  const volumePullup = await createDayExercise(volume.id, weightedPullup.id, 2)
-  const volumeDip = await createDayExercise(volume.id, weightedDip.id, 3)
-  const volumeRow = await createDayExercise(volume.id, chestSupportedRow.id, 4)
-  const techniquePausedBench = await createDayExercise(technique.id, pausedBench.id, 1)
-  const techniquePullup = await createDayExercise(technique.id, pullup.id, 2)
-  const techniqueInclineDb = await createDayExercise(technique.id, inclineDb.id, 3)
-  const techniqueRow = await createDayExercise(technique.id, chestSupportedRow.id, 4)
+  const heavyBench = await upsertDayExercise(heavy.id, bench.id, 1)
+  const heavyPullup = await upsertDayExercise(heavy.id, weightedPullup.id, 2)
+  const heavyInclineDb = await upsertDayExercise(heavy.id, inclineDb.id, 3)
+  const heavyRow = await upsertDayExercise(heavy.id, chestSupportedRow.id, 4)
+  const deadliftDe = await upsertDayExercise(deadliftDay.id, deadlift.id, 1)
+  const squatDe = await upsertDayExercise(squatDay.id, squat.id, 1)
+  const volumeBench = await upsertDayExercise(volume.id, bench.id, 1)
+  const volumePullup = await upsertDayExercise(volume.id, weightedPullup.id, 2)
+  const volumeDip = await upsertDayExercise(volume.id, weightedDip.id, 3)
+  const volumeRow = await upsertDayExercise(volume.id, chestSupportedRow.id, 4)
+  const techniquePausedBench = await upsertDayExercise(technique.id, pausedBench.id, 1)
+  const techniquePullup = await upsertDayExercise(technique.id, pullup.id, 2)
+  const techniqueInclineDb = await upsertDayExercise(technique.id, inclineDb.id, 3)
+  const techniqueRow = await upsertDayExercise(technique.id, chestSupportedRow.id, 4)
 
   const noIncrements = null
   const base = (dayExerciseId: string, sortOrder: number) => ({ dayExerciseId, sortOrder, restSeconds: null })
