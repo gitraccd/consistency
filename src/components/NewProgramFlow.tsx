@@ -291,7 +291,7 @@ export function NewProgramFlow({
                         E1RM: {roundToIncrement(e1rm)} lb
                         <span className="text-xs">
                           {' '}
-                          (targets below include +{Math.round((PROGRESSIVE_OVERLOAD_FACTOR - 1) * 100)}% overload)
+                          (targets below include +{((PROGRESSIVE_OVERLOAD_FACTOR - 1) * 100).toFixed(1)}% overload)
                         </span>
                       </div>
                       {previewRows.map((row, i) => (
